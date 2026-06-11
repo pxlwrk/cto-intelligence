@@ -260,7 +260,35 @@ function render(data) {
       (s) =>
         `<span class="svc" title="${esc(s.description)}"><span class="svc-dot ${SVC_DOTS[s.indicator] || 'svc-unknown'}"></span>${esc(s.name)}</span>`
     )
-    .join('') || '<span class="empty-note">–</span>';
+    .join('') || '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
+
+  const dwd = data.lists.dwd;
+  if (dwd && dwd.total > 0) {
+    const DWD_DOTS = { Extreme: 'svc-critical', Severe: 'svc-major', Moderate: 'svc-minor', Minor: 'svc-ok' };
+    el('dwd-status').innerHTML =
+      `<span class="svc-dot ${DWD_DOTS[dwd.worst] || 'svc-minor'}"></span>` +
+      `<span><span class="live-value">${fmtNum(dwd.total)}</span> aktiv</span>` +
+      (dwd.severe > 0 ? `<span><span class="live-value">${fmtNum(dwd.severe)}</span> schwer</span>` : '');
+  } else if (dwd) {
+    el('dwd-status').innerHTML = '<span class="svc-dot svc-ok"></span><span>keine Warnungen</span>';
+  } else {
+    el('dwd-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
+  }
+
+  const energy = data.lists.energy;
+  if (energy && energy.renShare !== null) {
+    const AMPEL = { 0: 'svc-major', 1: 'svc-minor', 2: 'svc-ok', 3: 'svc-ok' };
+    const load =
+      energy.loadGw !== null && energy.loadGw !== undefined
+        ? `<span>Netzlast <span class="live-value">${energy.loadGw.toLocaleString('de-DE', { maximumFractionDigits: 1 })}</span> GW</span>`
+        : '';
+    el('energy-status').innerHTML =
+      `<span class="svc-dot ${AMPEL[energy.signal] ?? 'svc-unknown'}" title="Strom-Ampel (EE-Anteil)"></span>` +
+      `<span>EE-Anteil <span class="live-value">${Math.round(energy.renShare)}&thinsp;%</span></span>` +
+      load;
+  } else {
+    el('energy-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
+  }
 
   const chips = (data.lists.socialTrends || []).map((t) => {
     const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';

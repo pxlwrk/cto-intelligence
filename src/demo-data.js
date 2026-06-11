@@ -161,6 +161,8 @@ function buildDemoDashboard() {
         { name: 'Anthropic', indicator: 'none', description: 'All Systems Operational' },
         { name: 'Slack', indicator: 'none', description: '' },
       ],
+      dwd: { total: 14, severe: 3, worst: 'Severe' },
+      energy: { renShare: 64.2, signal: 2, loadGw: 58.4 },
       ninaWarnings: [
         { title: 'Bundesweiter Warntag: Probewarnung des BBK', severity: 'Minor', date: iso(0, 11), channel: 'mowas' },
         { title: 'Sturmtief über Norddeutschland: Behinderungen im Bahnverkehr', severity: 'Severe', date: iso(0, 6), channel: 'katwarn' },

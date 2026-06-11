@@ -227,6 +227,47 @@ async function fetchNinaWarnings(limit = 5) {
     .slice(0, limit);
 }
 
+/** DWD-Wetterwarnungen über den DWD-Kanal der NINA-API des Bundes. */
+async function fetchDwdWarnings() {
+  const data = await fetchJson('https://warnung.bund.de/api31/dwd/mapData.json');
+  return (data || [])
+    .map((w) => ({
+      title: w.i18nTitle?.de || w.headline || '',
+      severity: w.severity || 'Minor',
+      date: w.startDate || w.sent || null,
+    }))
+    .filter((w) => w.title);
+}
+
+/**
+ * Stromnetz Deutschland (Energy-Charts API des Fraunhofer ISE, ohne Key):
+ * EE-Anteil-Ampel (/signal) und aktuelle Netzlast (/public_power).
+ */
+async function fetchEnergy() {
+  const lastValid = (arr) => {
+    for (let i = (arr || []).length - 1; i >= 0; i--) {
+      if (arr[i] !== null && arr[i] !== undefined) return arr[i];
+    }
+    return null;
+  };
+
+  const signal = await fetchJson('https://api.energy-charts.info/signal?country=de');
+  const result = {
+    renShare: lastValid(signal.share),
+    signal: lastValid(signal.signal), // 0 = rot, 1 = gelb, 2 = grün, 3 = grün+
+    loadGw: null,
+  };
+  try {
+    const power = await fetchJson('https://api.energy-charts.info/public_power?country=de');
+    const load = (power.production_types || []).find((p) => p.name === 'Load');
+    const mw = lastValid(load?.data);
+    if (mw !== null) result.loadGw = mw / 1000;
+  } catch {
+    // Netzlast ist optional – die Ampel allein ist aussagekräftig genug
+  }
+  return result;
+}
+
 module.exports = {
   fetchFeed,
   fetchKev,
@@ -237,4 +278,6 @@ module.exports = {
   fetchBlueskyTrends,
   fetchServiceStatus,
   fetchNinaWarnings,
+  fetchDwdWarnings,
+  fetchEnergy,
 };

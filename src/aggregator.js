@@ -10,6 +10,8 @@ const {
   fetchBlueskyTrends,
   fetchServiceStatus,
   fetchNinaWarnings,
+  fetchDwdWarnings,
+  fetchEnergy,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -136,6 +138,18 @@ const SOURCES = [
     fetch: () => fetchNinaWarnings(5),
   },
   {
+    id: 'dwd',
+    name: 'DWD-Wetterwarnungen',
+    ttl: 10 * MIN,
+    fetch: fetchDwdWarnings,
+  },
+  {
+    id: 'energy',
+    name: 'Stromnetz (Fraunhofer ISE Energy-Charts)',
+    ttl: 15 * MIN,
+    fetch: fetchEnergy,
+  },
+  {
     id: 'tagesschauAusland',
     name: 'Tagesschau Ausland',
     ttl: 15 * MIN,
@@ -258,6 +272,16 @@ function mergeTrends(trendLists, limit = 14) {
   return [...relevant, ...rest].slice(0, limit).map((t) => ({ ...t, cto: isCtoTopic(t.tag) }));
 }
 
+function summarizeDwd(warnings) {
+  const rank = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 };
+  const severe = warnings.filter((w) => w.severity === 'Severe' || w.severity === 'Extreme');
+  const worst = warnings.reduce(
+    (acc, w) => ((rank[w.severity] ?? 9) < (rank[acc] ?? 9) ? w.severity : acc),
+    null
+  );
+  return { total: warnings.length, severe: severe.length, worst };
+}
+
 async function buildDashboard() {
   const results = {};
   await Promise.all(
@@ -311,6 +335,8 @@ async function buildDashboard() {
       world: get('tagesschauAusland'),
       serviceStatus: get('serviceStatus'),
       ninaWarnings: get('nina').slice(0, 3),
+      dwd: summarizeDwd(get('dwd')),
+      energy: get('energy', null),
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('mastodonTrends'),

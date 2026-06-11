@@ -52,9 +52,9 @@ Quellen (keine API-Schlüssel erforderlich):
   ein Fetcher in `src/fetchers.js` ergänzen (Endpoint
   `GET /2/trends/by/woeid/:id`, Bearer-Token als Env-Variable).
 
-### 5. Live-Daten
+### 5. Live-Daten (eigene Zeile zwischen Diagrammen und Feeds)
 
-- **Cloud-/KI-Dienste-Status** (Footer-Ampel, 3 min TTL): öffentliche
+- **Cloud-/KI-Dienste-Status** (3 min TTL): öffentliche
   Statuspage-APIs von GitHub, Cloudflare, npm, Vercel, Zoom, OpenAI,
   Anthropic und Slack – grün/gelb/orange/rot je nach Störungsgrad.
   Weitere Statuspage-kompatible Dienste lassen sich in
@@ -64,6 +64,11 @@ Quellen (keine API-Schlüssel erforderlich):
   Bundesamts für Bevölkerungsschutz (MoWaS, KATWARN, BIWAPP) über die
   [NINA-API](https://nina.api.bund.dev/), erscheinen mit Schweregrad-Bullet
   im Panel „Deutschland & Welt".
+- **DWD-Wetterwarnungen** (10 min TTL): aktive amtliche Wetterwarnungen
+  über den DWD-Kanal der NINA-API, verdichtet zu Anzahl/Schweregrad-Ampel.
+- **Stromnetz Deutschland** (15 min TTL): EE-Anteil-Ampel und aktuelle
+  Netzlast über die [Energy-Charts-API](https://api.energy-charts.info/)
+  des Fraunhofer ISE (ohne Key, KRITIS-Indikator).
 
 ### 6. Allgemeine Lage Deutschland / Welt
 

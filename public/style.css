@@ -130,12 +130,15 @@ body {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: 44fr 56fr;
+  grid-template-rows: 42fr 58px 52fr;
   gap: 12px;
   grid-template-areas:
-    "sev sev sev tim tim tim tim tim ven ven ven ven"
-    "cb  cb  cb  sec sec sec tech tech tech pol pol pol";
+    "sev  sev  sev  tim  tim  tim  tim  tim  ven  ven  ven  ven"
+    "live live live live live live live live live live live live"
+    "cb   cb   cb   sec  sec  sec  tech tech tech pol  pol  pol";
 }
+
+.area-live { grid-area: live; }
 
 .area-severity { grid-area: sev; }
 .area-timeline { grid-area: tim; }
@@ -312,24 +315,47 @@ body {
   color: var(--accent);
   border-right: 1px solid var(--panel-border);
 }
-/* Live-Status der Cloud-/KI-Dienste */
-.svc-status {
-  flex: 0 0 auto;
+/* ── Live-Zeile: Dienste, DWD, Stromnetz ─────────────────── */
+.live-row {
+  flex-direction: row;
+  align-items: stretch;
+  padding: 8px 14px;
+  gap: 0;
+}
+.live-seg {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 22px;
+  border-right: 1px solid var(--panel-border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.live-seg:first-child { padding-left: 4px; flex: 1 1 auto; }
+.live-seg:last-child { border-right: none; }
+.live-label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.live-label em { font-style: normal; color: var(--low); }
+.live-content {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0 18px;
-  border-right: 1px solid var(--panel-border);
-  font-size: 13px;
+  gap: 16px;
+  font-size: 15px;
   color: var(--text);
-  white-space: nowrap;
 }
-.svc { display: inline-flex; align-items: center; gap: 5px; }
-.svc-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.live-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.svc { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+.svc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .svc-ok       { background: var(--low); }
 .svc-minor    { background: var(--medium); }
-.svc-major    { background: var(--high); box-shadow: 0 0 6px var(--high); }
-.svc-critical { background: var(--critical); box-shadow: 0 0 6px var(--critical); }
+.svc-major    { background: var(--high); box-shadow: 0 0 7px var(--high); }
+.svc-critical { background: var(--critical); box-shadow: 0 0 7px var(--critical); }
 .svc-unknown  { background: var(--none); }
 
 .ticker-viewport { flex: 1 1 auto; overflow: hidden; }

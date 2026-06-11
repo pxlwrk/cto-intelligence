@@ -56,6 +56,21 @@
       <div class="chart-wrap"><canvas id="chart-vendors"></canvas></div>
     </section>
 
+    <section class="panel live-row area-live">
+      <div class="live-seg">
+        <span class="live-label">Dienste-Status <em>live</em></span>
+        <div class="live-content" id="svc-status"></div>
+      </div>
+      <div class="live-seg">
+        <span class="live-label">DWD-Wetterwarnungen</span>
+        <div class="live-content" id="dwd-status"></div>
+      </div>
+      <div class="live-seg">
+        <span class="live-label">Stromnetz DE · Fraunhofer ISE</span>
+        <div class="live-content" id="energy-status"></div>
+      </div>
+    </section>
+
     <section class="panel area-certbund">
       <h2>CERT-Bund Sicherheitshinweise
         <span class="panel-sub sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig · gedimmt&nbsp;=&nbsp;Update</span>
@@ -80,8 +95,6 @@
   </main>
 
   <footer class="ticker">
-    <div class="ticker-label">DIENSTE</div>
-    <div id="svc-status" class="svc-status"></div>
     <div class="ticker-label">TECH-PULS</div>
     <div class="ticker-viewport"><div id="ticker-track" class="ticker-track"></div></div>
   </footer>
