@@ -268,6 +268,46 @@ async function fetchEnergy() {
   return result;
 }
 
+/**
+ * Cloudflare Radar (benötigt API-Token mit Berechtigung „Radar: Read",
+ * Env-Variable CLOUDFLARE_API_TOKEN): gemeldete Internet-Ausfälle der
+ * letzten 24 h und Trend des globalen Layer-7-DDoS-Volumens.
+ */
+async function fetchCloudflareRadar() {
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  if (!token) throw new Error('CLOUDFLARE_API_TOKEN nicht gesetzt');
+  const get = async (path) => {
+    const res = await fetchWithTimeout(`https://api.cloudflare.com/client/v4${path}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+    const body = await res.json();
+    if (!body.success) throw new Error(`Radar-API: ${body.errors?.[0]?.message || 'Fehler'}`);
+    return body.result;
+  };
+
+  const outages = await get('/radar/annotations/outages?dateRange=1d&limit=100&format=json');
+  const annotations = outages.annotations || [];
+  const isDe = (loc) => (typeof loc === 'string' ? loc : loc?.code) === 'DE';
+  const result = {
+    outages24h: annotations.length,
+    outagesDe: annotations.filter((a) => (a.locations || []).some(isDe)).length,
+    ddosTrendPct: null,
+  };
+
+  try {
+    const ts = await get('/radar/attacks/layer7/timeseries?dateRange=7d&aggInterval=1d&format=json');
+    const values = (ts.main?.values || []).map(Number).filter((v) => !Number.isNaN(v));
+    if (values.length >= 3) {
+      const latest = values[values.length - 1];
+      const mean = values.slice(0, -1).reduce((a, b) => a + b, 0) / (values.length - 1);
+      if (mean > 0) result.ddosTrendPct = Math.round(((latest - mean) / mean) * 100);
+    }
+  } catch {
+    // DDoS-Trend ist optional, Ausfalldaten allein sind aussagekräftig
+  }
+  return result;
+}
+
 module.exports = {
   fetchFeed,
   fetchKev,
@@ -280,4 +320,5 @@ module.exports = {
   fetchNinaWarnings,
   fetchDwdWarnings,
   fetchEnergy,
+  fetchCloudflareRadar,
 };

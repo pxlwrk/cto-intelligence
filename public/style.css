@@ -250,8 +250,20 @@ body {
 .dot-mittel   { background: var(--medium); }
 .dot-niedrig  { background: var(--low); }
 .dot-ki       { background: #a78bfa; }
+/* UNGEPATCHT: roter Ring um den Risiko-Bullet */
+.dot.unpatched { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--critical); }
+.dot-ring { background: transparent; box-shadow: 0 0 0 1.5px var(--critical); }
 
+.sev-legend {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: -4px 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+}
 .sev-legend .dot { width: 7px; height: 7px; margin: 0 3px 0 8px; vertical-align: middle; }
+.sev-legend .dot:first-child { margin-left: 0; }
 
 /* ── Social-Media-Trends ─────────────────────────────────── */
 .trends {

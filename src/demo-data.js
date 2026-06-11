@@ -20,8 +20,9 @@ function dateKey(daysBack) {
 
 function buildDemoDashboard() {
   const certBund = [
-    { title: '[NEU] [kritisch] Ivanti Connect Secure: Schwachstelle ermöglicht Umgehung der Authentisierung und Ausführen von beliebigem Programmcode mit Administratorrechten', date: iso(0, 7) },
+    { title: '[NEU] [UNGEPATCHT] [kritisch] Ivanti Connect Secure: Schwachstelle ermöglicht Umgehung der Authentisierung und Ausführen von beliebigem Programmcode mit Administratorrechten', date: iso(0, 7) },
     { title: '[NEU] [hoch] Cisco IOS XE: Mehrere Schwachstellen ermöglichen Codeausführung', date: iso(0, 8) },
+    { title: '[UPDATE] [UNGEPATCHT] [hoch] Atlassian Confluence: Schwachstelle ermöglicht Offenlegung von Informationen', date: iso(0, 6) },
     { title: '[UPDATE] [hoch] Linux-Kernel: Mehrere Schwachstellen ermöglichen Privilegieneskalation und Denial of Service', date: iso(1) },
     { title: '[NEU] [mittel] OpenSSL: Schwachstelle ermöglicht Denial of Service', date: iso(1, 14) },
     { title: '[UPDATE] [hoch] Microsoft Exchange Server: Schwachstelle ermöglicht Codeausführung', date: iso(2) },
@@ -163,6 +164,7 @@ function buildDemoDashboard() {
       ],
       dwd: { total: 14, severe: 3, worst: 'Severe' },
       energy: { renShare: 64.2, signal: 2, loadGw: 58.4 },
+      cloudflare: { outages24h: 9, outagesDe: 0, ddosTrendPct: 23 },
       ninaWarnings: [
         { title: 'Bundesweiter Warntag: Probewarnung des BBK', severity: 'Minor', date: iso(0, 11), channel: 'mowas' },
         { title: 'Sturmtief über Norddeutschland: Behinderungen im Bahnverkehr', severity: 'Severe', date: iso(0, 6), channel: 'katwarn' },

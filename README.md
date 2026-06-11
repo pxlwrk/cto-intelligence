@@ -69,6 +69,14 @@ Quellen (keine API-Schlüssel erforderlich):
 - **Stromnetz Deutschland** (15 min TTL): EE-Anteil-Ampel und aktuelle
   Netzlast über die [Energy-Charts-API](https://api.energy-charts.info/)
   des Fraunhofer ISE (ohne Key, KRITIS-Indikator).
+- **Cloudflare Radar** (optional, 10 min TTL): gemeldete Internet-Ausfälle
+  der letzten 24 h (weltweit und Deutschland) sowie der Trend des globalen
+  Layer-7-DDoS-Volumens gegenüber dem 7-Tage-Schnitt. Erfordert einen
+  API-Token: im [Cloudflare-Dashboard](https://dash.cloudflare.com/profile/api-tokens)
+  einen Custom Token mit der Berechtigung **Account → Radar → Read**
+  erstellen und als Env-Variable `CLOUDFLARE_API_TOKEN` setzen (lokal beim
+  Start, auf Vercel unter *Settings → Environment Variables*, danach
+  redeployen). Ohne Token wird das Segment automatisch ausgeblendet.
 
 ### 6. Allgemeine Lage Deutschland / Welt
 

@@ -69,12 +69,15 @@
         <span class="live-label">Stromnetz DE · Fraunhofer ISE</span>
         <div class="live-content" id="energy-status"></div>
       </div>
+      <div class="live-seg hidden" id="cloudflare-seg">
+        <span class="live-label">Internet · Cloudflare Radar</span>
+        <div class="live-content" id="cloudflare-status"></div>
+      </div>
     </section>
 
     <section class="panel area-certbund">
-      <h2>CERT-Bund Sicherheitshinweise
-        <span class="panel-sub sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig · gedimmt&nbsp;=&nbsp;Update</span>
-      </h2>
+      <h2>CERT-Bund Sicherheitshinweise</h2>
+      <div class="sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig · <i class="dot dot-ring"></i>ungepatcht · gedimmt&nbsp;=&nbsp;Update</div>
       <ul id="list-certbund" class="newslist"></ul>
     </section>
 

@@ -47,24 +47,27 @@ function fmtTime(iso) {
 
 /*
  * CERT-Bund-Titel tragen vorangestellte Klammer-Token in wechselnder
- * Reihenfolge, z. B. "[NEU] [hoch] OpenSSL: …" oder "[UPDATE] [mittel] …".
- * Risikoklasse wird zum Bullet, NEU/UPDATE zur Zeilen-Einfärbung.
+ * Reihenfolge, z. B. "[NEU] [UNGEPATCHT] [hoch] OpenSSL: …".
+ * Risikoklasse wird zum Bullet, NEU/UPDATE zur Zeilen-Einfärbung,
+ * UNGEPATCHT zum roten Ring um den Bullet.
  */
 const SEVERITY_TOKENS = ['kritisch', 'hoch', 'mittel', 'niedrig'];
 function parseCertTitle(title) {
   let status = null;
   let severity = null;
+  let unpatched = false;
   let text = (title || '').trim();
   let m;
   while ((m = text.match(/^\[([^\]]+)\]\s*/))) {
     const token = m[1].trim().toLowerCase();
     if (token === 'neu') status = 'neu';
     else if (token === 'update') status = 'update';
+    else if (token === 'ungepatcht') unpatched = true;
     else if (SEVERITY_TOKENS.includes(token)) severity = token;
     else break; // unbekanntes Token im Titel belassen
     text = text.slice(m[0].length);
   }
-  return { status, severity, text };
+  return { status, severity, unpatched, text };
 }
 
 function meta(parts) {
@@ -222,8 +225,8 @@ function render(data) {
   renderVendorChart(data.charts.kevTopVendors);
 
   renderList('list-certbund', data.lists.certBund, (it) => {
-    const { status, severity, text } = parseCertTitle(it.title);
-    const dot = `<span class="dot ${severity ? `dot-${severity}` : ''}" title="${severity || ''}"></span>`;
+    const { status, severity, unpatched, text } = parseCertTitle(it.title);
+    const dot = `<span class="dot ${severity ? `dot-${severity}` : ''}${unpatched ? ' unpatched' : ''}" title="${[severity, unpatched ? 'ungepatcht' : ''].filter(Boolean).join(', ')}"></span>`;
     return `<li class="${status === 'update' ? 'item-update' : 'item-new'}">${dot}<div class="item-body"><span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</div></li>`;
   });
 
@@ -231,10 +234,11 @@ function render(data) {
     `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
   );
 
+  const byDate = (a, b) => new Date(b.date || 0) - new Date(a.date || 0);
   const tech = [
     ...(data.lists.aiNews || []).slice(0, 4).map((it) => ({ ...it, ki: true })),
     ...(data.lists.techNews || []).slice(0, 6),
-  ];
+  ].sort(byDate);
   renderList('list-tech', tech, (it) =>
     `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
   );
@@ -245,10 +249,15 @@ function render(data) {
     region: 'NINA',
     dot: NINA_DOTS[(it.severity || '').toLowerCase()] || 'dot-mittel',
   }));
+  // NINA-Warnungen bleiben oben angepinnt, der Rest ist chronologisch gemischt
   const politics = [
     ...nina,
-    ...(data.lists.germany || []).slice(0, 5 - Math.min(nina.length, 2)).map((it) => ({ ...it, region: 'DE' })),
-    ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
+    ...[
+      ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, region: 'DE' })),
+      ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
+    ]
+      .sort(byDate)
+      .slice(0, 10 - Math.min(nina.length, 3)),
   ];
   renderList('list-politics', politics, (it) =>
     `<li>${it.dot ? `<span class="dot ${it.dot}"></span>` : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
@@ -273,6 +282,23 @@ function render(data) {
     el('dwd-status').innerHTML = '<span class="svc-dot svc-ok"></span><span>keine Warnungen</span>';
   } else {
     el('dwd-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
+  }
+
+  const cf = data.lists.cloudflare;
+  el('cloudflare-seg').classList.toggle('hidden', cf === null || cf === undefined);
+  if (cf && !cf.unavailable) {
+    const dot = cf.outagesDe > 0 ? 'svc-critical' : cf.outages24h >= 15 ? 'svc-minor' : 'svc-ok';
+    const ddos =
+      cf.ddosTrendPct !== null && cf.ddosTrendPct !== undefined
+        ? `<span>L7-DDoS <span class="live-value">${cf.ddosTrendPct > 0 ? '+' : ''}${cf.ddosTrendPct}&thinsp;%</span> vs. 7T</span>`
+        : '';
+    el('cloudflare-status').innerHTML =
+      `<span class="svc-dot ${dot}"></span>` +
+      `<span><span class="live-value">${fmtNum(cf.outages24h)}</span> Ausfälle 24h</span>` +
+      `<span>DE <span class="live-value">${fmtNum(cf.outagesDe)}</span></span>` +
+      ddos;
+  } else if (cf) {
+    el('cloudflare-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
   }
 
   const energy = data.lists.energy;

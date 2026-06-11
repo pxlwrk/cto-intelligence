@@ -12,6 +12,7 @@ const {
   fetchNinaWarnings,
   fetchDwdWarnings,
   fetchEnergy,
+  fetchCloudflareRadar,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -149,6 +150,17 @@ const SOURCES = [
     ttl: 15 * MIN,
     fetch: fetchEnergy,
   },
+  // Nur aktiv, wenn ein Token hinterlegt ist (Berechtigung „Radar: Read")
+  ...(process.env.CLOUDFLARE_API_TOKEN
+    ? [
+        {
+          id: 'cloudflare',
+          name: 'Cloudflare Radar',
+          ttl: 10 * MIN,
+          fetch: fetchCloudflareRadar,
+        },
+      ]
+    : []),
   {
     id: 'tagesschauAusland',
     name: 'Tagesschau Ausland',
@@ -247,18 +259,30 @@ function mergeNews(lists, limit) {
  * wenn nicht genug fachliche Treffer vorhanden sind.
  */
 const CTO_TOPIC_PATTERNS = [
-  /\b(ai|ki|llm|gpt|cve|5g|6g|iot|vpn|sso|api|soc|os)\b/i,
-  /cyber|secur|sicherheit|hack|breach|leak|ransom|malware|phish|exploit|zero.?day|vuln|patch|firewall|infosec|kritis|botnet|ddos|spyware|backdoor/i,
-  /cloud|software|open.?source|linux|windows|microsoft|google|apple|nvidia|chip|halbleiter|semicon|quant|crypto|krypto|encrypt|verschlüssel|datenschutz|privacy|datacenter|rechenzentrum/i,
-  /digital|verwaltung|behörde|infrastruktur|netzwerk|glasfaser|robot|automatis|telekom|outage|störung|ausfall|künstliche|intelligen/i,
+  /\b(ai|ki|llm|gpt|cve|5g|6g|iot|vpn|sso|api|soc)\b/i,
+  /cyber|secur|sicherheit|hack|breach|leak|ransom|malware|phish|exploit|zero.?day|vuln|patch|firewall|infosec|kritis|botnet|ddos|spyware|backdoor|darknet|cisa|bsi\b/i,
+  /cloud|software|open.?source|linux|windows|microsoft|google|apple|nvidia|intel\b|amd\b|sap\b|chip|halbleiter|semicon|quant|crypto|krypto|encrypt|verschlüssel|datenschutz|privacy|datacenter|rechenzentrum|server|kernel|browser|android|iphone/i,
+  /digital|verwaltung|behörde|infrastruktur|netzwerk|glasfaser|robot|automatis|telekom|outage|störung|ausfall|künstliche|intelligen|nis.?2|dsgvo|gdpr|dora\b|eidas|ai.?act|datenleck|datenpanne|chatgpt|copilot|gemini|claude|deepseek|mistral|openai|anthropic/i,
 ];
 
 function isCtoTopic(tag) {
-  return CTO_TOPIC_PATTERNS.some((re) => re.test(tag));
+  // CamelCase-Tags wie "AIAct", "KIGesetz" oder "ZeroDay" vor dem
+  // Mustervergleich in Wörter zerlegen, sonst scheitern
+  // Wortgrenzen-Muster wie \bai\b.
+  const normalized = tag
+    .replace(/([a-zäöüß])([A-ZÄÖÜ])/g, '$1 $2')
+    .replace(/([A-ZÄÖÜ]+)([A-ZÄÖÜ][a-zäöüß])/g, '$1 $2')
+    .replace(/([a-zA-Zäöüß])(\d)/g, '$1 $2');
+  return CTO_TOPIC_PATTERNS.some((re) => re.test(normalized));
 }
 
-/** Quellen zusammenführen, deduplizieren, CTO-Themen nach vorn sortieren. */
+/**
+ * Quellen zusammenführen, deduplizieren und strikt auf CTO-Themen filtern.
+ * Fachfremde Trends füllen nur auf, wenn es weniger als MIN_CHIPS
+ * relevante Treffer gibt, und bleiben gedimmt (cto: false).
+ */
 function mergeTrends(trendLists, limit = 14) {
+  const MIN_CHIPS = 8;
   const byTag = new Map();
   for (const t of trendLists.flat()) {
     const key = t.tag.toLowerCase();
@@ -269,7 +293,8 @@ function mergeTrends(trendLists, limit = 14) {
   const byCount = (a, b) => (b.count || 0) - (a.count || 0);
   const relevant = all.filter((t) => isCtoTopic(t.tag)).sort(byCount);
   const rest = all.filter((t) => !isCtoTopic(t.tag)).sort(byCount);
-  return [...relevant, ...rest].slice(0, limit).map((t) => ({ ...t, cto: isCtoTopic(t.tag) }));
+  const fill = relevant.length < MIN_CHIPS ? rest.slice(0, MIN_CHIPS - relevant.length) : [];
+  return [...relevant.slice(0, limit), ...fill].map((t) => ({ ...t, cto: isCtoTopic(t.tag) }));
 }
 
 function summarizeDwd(warnings) {
@@ -337,6 +362,10 @@ async function buildDashboard() {
       ninaWarnings: get('nina').slice(0, 3),
       dwd: summarizeDwd(get('dwd')),
       energy: get('energy', null),
+      // null = nicht konfiguriert (Segment ausblenden); unavailable = gestört
+      cloudflare: process.env.CLOUDFLARE_API_TOKEN
+        ? get('cloudflare', { unavailable: true })
+        : null,
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('mastodonTrends'),
