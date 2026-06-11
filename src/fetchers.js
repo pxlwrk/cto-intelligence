@@ -158,6 +158,75 @@ async function fetchBlueskyTrends(limit = 10) {
   }));
 }
 
+/**
+ * Live-Status großer Cloud-/KI-Dienste über deren öffentliche
+ * Statuspage-APIs (kein Key). Indicator: none | minor | major | critical.
+ */
+const STATUS_PAGES = [
+  { name: 'GitHub', url: 'https://www.githubstatus.com/api/v2/status.json' },
+  { name: 'Cloudflare', url: 'https://www.cloudflarestatus.com/api/v2/status.json' },
+  { name: 'npm', url: 'https://status.npmjs.org/api/v2/status.json' },
+  { name: 'Vercel', url: 'https://www.vercel-status.com/api/v2/status.json' },
+  { name: 'Zoom', url: 'https://status.zoom.us/api/v2/status.json' },
+  { name: 'OpenAI', url: 'https://status.openai.com/api/v2/status.json' },
+  { name: 'Anthropic', url: 'https://status.anthropic.com/api/v2/status.json' },
+];
+
+async function fetchServiceStatus() {
+  const statuspages = STATUS_PAGES.map(async ({ name, url }) => {
+    const data = await fetchJson(url);
+    return {
+      name,
+      indicator: data.status?.indicator || 'unknown',
+      description: data.status?.description || '',
+    };
+  });
+  const slack = (async () => {
+    const data = await fetchJson('https://slack-status.com/api/v2.0.0/current');
+    const incidents = data.active_incidents || [];
+    const outage = incidents.some((i) => i.type === 'outage');
+    return {
+      name: 'Slack',
+      indicator: outage ? 'major' : incidents.length > 0 ? 'minor' : 'none',
+      description: incidents[0]?.title || '',
+    };
+  })();
+
+  const results = await Promise.allSettled([...statuspages, slack]);
+  return results.map((r, i) =>
+    r.status === 'fulfilled'
+      ? r.value
+      : { name: i < STATUS_PAGES.length ? STATUS_PAGES[i].name : 'Slack', indicator: 'unknown', description: 'nicht erreichbar' }
+  );
+}
+
+/**
+ * Amtliche Warnmeldungen des Bundes (NINA-API des BBK, ohne Key):
+ * MoWaS (Bevölkerungsschutz) und KATWARN, bundesweit.
+ */
+async function fetchNinaWarnings(limit = 5) {
+  const channels = ['mowas', 'katwarn', 'biwapp'];
+  const results = await Promise.allSettled(
+    channels.map((c) => fetchJson(`https://warnung.bund.de/api31/${c}/mapData.json`))
+  );
+  const rank = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 };
+  const items = results
+    .flatMap((r, i) =>
+      r.status === 'fulfilled'
+        ? (r.value || []).map((w) => ({
+            title: w.i18nTitle?.de || w.headline || '',
+            severity: w.severity || 'Minor',
+            date: w.startDate || w.sent || null,
+            channel: channels[i],
+          }))
+        : []
+    )
+    .filter((w) => w.title);
+  return items
+    .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
+    .slice(0, limit);
+}
+
 module.exports = {
   fetchFeed,
   fetchKev,
@@ -166,4 +235,6 @@ module.exports = {
   fetchTagesschau,
   fetchMastodonTrends,
   fetchBlueskyTrends,
+  fetchServiceStatus,
+  fetchNinaWarnings,
 };

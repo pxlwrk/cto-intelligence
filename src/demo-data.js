@@ -151,6 +151,20 @@ function buildDemoDashboard() {
       hackerNews,
       germany,
       world,
+      serviceStatus: [
+        { name: 'GitHub', indicator: 'none', description: 'All Systems Operational' },
+        { name: 'Cloudflare', indicator: 'none', description: 'All Systems Operational' },
+        { name: 'npm', indicator: 'none', description: 'All Systems Operational' },
+        { name: 'Vercel', indicator: 'minor', description: 'Partially Degraded Service' },
+        { name: 'Zoom', indicator: 'none', description: 'All Systems Operational' },
+        { name: 'OpenAI', indicator: 'major', description: 'Partial Outage' },
+        { name: 'Anthropic', indicator: 'none', description: 'All Systems Operational' },
+        { name: 'Slack', indicator: 'none', description: '' },
+      ],
+      ninaWarnings: [
+        { title: 'Bundesweiter Warntag: Probewarnung des BBK', severity: 'Minor', date: iso(0, 11), channel: 'mowas' },
+        { title: 'Sturmtief über Norddeutschland: Behinderungen im Bahnverkehr', severity: 'Severe', date: iso(0, 6), channel: 'katwarn' },
+      ],
       socialTrends: [
         { tag: 'ZeroDay', count: 4100, source: 'infosec.exchange', cto: true },
         { tag: 'KRITIS', count: 3400, source: 'mastodon.social', cto: true },

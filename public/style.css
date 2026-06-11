@@ -88,7 +88,8 @@ body {
 .clockbox { text-align: right; }
 .clock { font-size: 38px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 .date { font-size: 15px; color: var(--text-dim); margin-top: 2px; }
-.updated { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.updated { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+.updated #updated { color: var(--accent); font-weight: 600; }
 .updated .stale { color: var(--high); }
 
 /* ── KPI-Reihe ───────────────────────────────────────────── */
@@ -311,6 +312,26 @@ body {
   color: var(--accent);
   border-right: 1px solid var(--panel-border);
 }
+/* Live-Status der Cloud-/KI-Dienste */
+.svc-status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  border-right: 1px solid var(--panel-border);
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.svc { display: inline-flex; align-items: center; gap: 5px; }
+.svc-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.svc-ok       { background: var(--low); }
+.svc-minor    { background: var(--medium); }
+.svc-major    { background: var(--high); box-shadow: 0 0 6px var(--high); }
+.svc-critical { background: var(--critical); box-shadow: 0 0 6px var(--critical); }
+.svc-unknown  { background: var(--none); }
+
 .ticker-viewport { flex: 1 1 auto; overflow: hidden; }
 .ticker-track {
   display: inline-flex;

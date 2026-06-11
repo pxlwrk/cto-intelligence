@@ -52,7 +52,20 @@ Quellen (keine API-Schlüssel erforderlich):
   ein Fetcher in `src/fetchers.js` ergänzen (Endpoint
   `GET /2/trends/by/woeid/:id`, Bearer-Token als Env-Variable).
 
-### 5. Allgemeine Lage Deutschland / Welt
+### 5. Live-Daten
+
+- **Cloud-/KI-Dienste-Status** (Footer-Ampel, 3 min TTL): öffentliche
+  Statuspage-APIs von GitHub, Cloudflare, npm, Vercel, Zoom, OpenAI,
+  Anthropic und Slack – grün/gelb/orange/rot je nach Störungsgrad.
+  Weitere Statuspage-kompatible Dienste lassen sich in
+  `STATUS_PAGES` (`src/fetchers.js`) ergänzen; AWS/Azure bieten nur
+  RSS-Feeds ohne sauberen Statusindikator und sind daher nicht enthalten.
+- **NINA/BBK-Warnmeldungen** (5 min TTL): amtliche Warnungen des
+  Bundesamts für Bevölkerungsschutz (MoWaS, KATWARN, BIWAPP) über die
+  [NINA-API](https://nina.api.bund.dev/), erscheinen mit Schweregrad-Bullet
+  im Panel „Deutschland & Welt".
+
+### 6. Allgemeine Lage Deutschland / Welt
 
 - **Tagesschau api2u** ([inoffiziell dokumentierte JSON-API](https://github.com/bundesAPI/tagesschau-api)),
   Ressorts `inland` und `ausland`. Limit 60 Requests/h – der serverseitige

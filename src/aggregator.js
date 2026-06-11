@@ -8,6 +8,8 @@ const {
   fetchTagesschau,
   fetchMastodonTrends,
   fetchBlueskyTrends,
+  fetchServiceStatus,
+  fetchNinaWarnings,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -120,6 +122,18 @@ const SOURCES = [
     name: 'Bluesky Trending Topics',
     ttl: 15 * MIN,
     fetch: () => fetchBlueskyTrends(8),
+  },
+  {
+    id: 'serviceStatus',
+    name: 'Cloud-Dienste-Status (Statuspages)',
+    ttl: 3 * MIN,
+    fetch: fetchServiceStatus,
+  },
+  {
+    id: 'nina',
+    name: 'NINA/BBK Warnmeldungen',
+    ttl: 5 * MIN,
+    fetch: () => fetchNinaWarnings(5),
   },
   {
     id: 'tagesschauAusland',
@@ -295,6 +309,8 @@ async function buildDashboard() {
       hackerNews: get('hn'),
       germany: get('tagesschauInland'),
       world: get('tagesschauAusland'),
+      serviceStatus: get('serviceStatus'),
+      ninaWarnings: get('nina').slice(0, 3),
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('mastodonTrends'),

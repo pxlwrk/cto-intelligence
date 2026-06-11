@@ -239,13 +239,28 @@ function render(data) {
     `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
   );
 
+  const NINA_DOTS = { extreme: 'dot-kritisch', severe: 'dot-hoch', moderate: 'dot-mittel', minor: 'dot-niedrig' };
+  const nina = (data.lists.ninaWarnings || []).map((it) => ({
+    ...it,
+    region: 'NINA',
+    dot: NINA_DOTS[(it.severity || '').toLowerCase()] || 'dot-mittel',
+  }));
   const politics = [
-    ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, region: 'DE' })),
+    ...nina,
+    ...(data.lists.germany || []).slice(0, 5 - Math.min(nina.length, 2)).map((it) => ({ ...it, region: 'DE' })),
     ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
   ];
   renderList('list-politics', politics, (it) =>
-    `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
+    `<li>${it.dot ? `<span class="dot ${it.dot}"></span>` : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
   );
+
+  const SVC_DOTS = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
+  el('svc-status').innerHTML = (data.lists.serviceStatus || [])
+    .map(
+      (s) =>
+        `<span class="svc" title="${esc(s.description)}"><span class="svc-dot ${SVC_DOTS[s.indicator] || 'svc-unknown'}"></span>${esc(s.name)}</span>`
+    )
+    .join('') || '<span class="empty-note">–</span>';
 
   const chips = (data.lists.socialTrends || []).map((t) => {
     const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';
@@ -292,7 +307,7 @@ async function refresh() {
 
 function tickClock() {
   const now = new Date();
-  el('clock').textContent = now.toLocaleTimeString('de-DE');
+  el('clock').textContent = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   el('date').textContent = now.toLocaleDateString('de-DE', {
     weekday: 'long',
     day: '2-digit',
