@@ -120,6 +120,18 @@ const SOURCES = [
     fetch: () => fetchMastodonTrends('infosec.exchange', 10),
   },
   {
+    id: 'chaosTrends',
+    name: 'chaos.social Trending Tags',
+    ttl: 15 * MIN,
+    fetch: () => fetchMastodonTrends('chaos.social', 10),
+  },
+  {
+    id: 'fossTrends',
+    name: 'fosstodon.org Trending Tags',
+    ttl: 15 * MIN,
+    fetch: () => fetchMastodonTrends('fosstodon.org', 10),
+  },
+  {
     id: 'blueskyTrends',
     name: 'Bluesky Trending Topics',
     ttl: 15 * MIN,
@@ -271,23 +283,21 @@ function isCtoTopic(tag) {
 
 /**
  * Quellen zusammenführen, deduplizieren und strikt auf CTO-Themen filtern.
- * Fachfremde Trends füllen nur auf, wenn es weniger als MIN_CHIPS
- * relevante Treffer gibt, und bleiben gedimmt (cto: false).
+ * Globale Pop-Trends werden verworfen – die fachliche Breite kommt aus
+ * den Tech-Instanzen (infosec.exchange, chaos.social, fosstodon.org).
  */
 function mergeTrends(trendLists, limit = 14) {
-  const MIN_CHIPS = 8;
   const byTag = new Map();
   for (const t of trendLists.flat()) {
     const key = t.tag.toLowerCase();
     const existing = byTag.get(key);
     if (!existing || (t.count || 0) > (existing.count || 0)) byTag.set(key, t);
   }
-  const all = [...byTag.values()];
-  const byCount = (a, b) => (b.count || 0) - (a.count || 0);
-  const relevant = all.filter((t) => isCtoTopic(t.tag)).sort(byCount);
-  const rest = all.filter((t) => !isCtoTopic(t.tag)).sort(byCount);
-  const fill = relevant.length < MIN_CHIPS ? rest.slice(0, MIN_CHIPS - relevant.length) : [];
-  return [...relevant.slice(0, limit), ...fill].map((t) => ({ ...t, cto: isCtoTopic(t.tag) }));
+  return [...byTag.values()]
+    .filter((t) => isCtoTopic(t.tag))
+    .sort((a, b) => (b.count || 0) - (a.count || 0))
+    .slice(0, limit)
+    .map((t) => ({ ...t, cto: true }));
 }
 
 function summarizeDwd(warnings) {
@@ -344,10 +354,10 @@ async function buildDashboard() {
       kevTopVendors: topVendors(kev),
     },
     lists: {
-      certBund: certBund.slice(0, 9),
+      certBund: certBund.slice(0, 14),
       euAdvisories: get('certEu').slice(0, 4),
-      securityNews: mergeNews([get('heiseSecurity'), get('hackerNewsSec'), get('bsiCsw')], 9),
-      techNews: mergeNews([get('heise'), get('golem')], 8),
+      securityNews: mergeNews([get('heiseSecurity'), get('hackerNewsSec'), get('bsiCsw')], 12),
+      techNews: mergeNews([get('heise'), get('golem')], 10),
       aiNews: mergeNews([get('venturebeatAi'), get('mitTechReview')], 6),
       hackerNews: get('hn'),
       germany: get('tagesschauInland'),
@@ -366,6 +376,8 @@ async function buildDashboard() {
         : null,
       socialTrends: mergeTrends([
         get('infosecTrends'),
+        get('chaosTrends'),
+        get('fossTrends'),
         get('mastodonTrends'),
         get('blueskyTrends'),
       ]),

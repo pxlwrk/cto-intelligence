@@ -188,10 +188,11 @@ function buildDemoDashboard() {
         { tag: 'OpenSource', count: 1450, source: 'mastodon.social', cto: true },
         { tag: 'Verwaltungscloud', count: 980, source: 'mastodon.social', cto: true },
         { tag: 'PostQuantum', count: 540, source: 'infosec.exchange', cto: true },
+        { tag: 'CCC', count: 480, source: 'chaos.social', cto: true },
+        { tag: 'SelfHosting', count: 420, source: 'fosstodon.org', cto: true },
         { tag: 'Cyberabwehr EU', count: null, source: 'Bluesky', cto: true },
         { tag: 'KI in Behörden', count: null, source: 'Bluesky', cto: true },
         { tag: 'Souveräne Cloud', count: null, source: 'Bluesky', cto: true },
-        { tag: 'Eurovision', count: 5200, source: 'mastodon.social', cto: false },
       ],
     },
     sources: [

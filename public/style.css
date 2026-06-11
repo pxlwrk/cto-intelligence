@@ -35,6 +35,21 @@ body {
 
 .hidden { display: none !important; }
 
+/* Fortschrittsbalken bis zum nächsten Daten-Refresh */
+#refresh-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), #7dd3fc);
+  z-index: 60;
+}
+@keyframes refresh-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
 .demo-banner {
   position: fixed;
   top: 8px;
@@ -185,21 +200,32 @@ body {
 
 /* ── News-Listen ─────────────────────────────────────────── */
 .newslist {
-  list-style: none;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  /* Überzählige Einträge laufen sanft aus statt hart abzuschneiden */
+  mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+}
+
+.ntrack {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.newslist {
-  /* Überzählige Einträge laufen sanft aus statt hart abzuschneiden */
-  mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+/* Läuft der Inhalt über, scrollt er langsam in einer Endlosschleife */
+.newslist.scrolling {
+  mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 14px), transparent);
+}
+.newslist.scrolling .ntrack {
+  animation: feed-scroll var(--scroll-duration, 60s) linear infinite;
+}
+@keyframes feed-scroll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
 }
 
-.newslist li {
+.newslist .nitem {
   display: flex;
   align-items: flex-start;
   gap: 8px;

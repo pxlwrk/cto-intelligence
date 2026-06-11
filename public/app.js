@@ -128,13 +128,27 @@ function fmtCount(n) {
   return n >= 1000 ? (n / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + 'k' : String(n);
 }
 
+/*
+ * Feed-Panel rendern; läuft der Inhalt über, scrollt er langsam in einer
+ * Endlosschleife (Inhalt wird dafür dupliziert).
+ */
+const SCROLL_SPEED = 12; // Pixel pro Sekunde
+
 function renderList(id, items, render) {
-  const ul = el(id);
+  const container = el(id);
+  container.classList.remove('scrolling');
   if (!items || items.length === 0) {
-    ul.innerHTML = '<li class="empty-note">Quelle derzeit nicht erreichbar</li>';
+    container.innerHTML = '<div class="nitem empty-note">Quelle derzeit nicht erreichbar</div>';
     return;
   }
-  ul.innerHTML = items.map(render).join('');
+  container.innerHTML = `<div class="ntrack">${items.map(render).join('')}</div>`;
+  requestAnimationFrame(() => {
+    const track = container.querySelector('.ntrack');
+    if (!track || track.scrollHeight <= container.clientHeight + 4) return;
+    track.innerHTML += track.innerHTML;
+    track.style.setProperty('--scroll-duration', `${track.scrollHeight / 2 / SCROLL_SPEED}s`);
+    container.classList.add('scrolling');
+  });
 }
 
 function esc(s) {
@@ -187,16 +201,18 @@ function renderTimelineChart(timeline) {
       labels,
       datasets: [
         {
-          label: 'CERT-Bund Advisories',
+          label: 'CERT-Bund Advisories (linke Achse)',
           data: (timeline || []).map((b) => b.certBund),
           backgroundColor: '#38bdf8',
           borderRadius: 3,
+          yAxisID: 'y',
         },
         {
-          label: 'KEV-Neuzugänge (aktiv ausgenutzt)',
+          label: 'KEV-Neuzugänge (rechte Achse)',
           data: (timeline || []).map((b) => b.kev),
           backgroundColor: '#f97316',
           borderRadius: 3,
+          yAxisID: 'yKev',
         },
       ],
     },
@@ -204,7 +220,19 @@ function renderTimelineChart(timeline) {
       maintainAspectRatio: false,
       scales: {
         x: { grid: { display: false }, stacked: false },
-        y: { beginAtZero: true, ticks: { precision: 0 } },
+        // Getrennte Y-Achsen: Advisories (zweistellig/Tag) und KEV (einstellig)
+        // skalieren unabhängig, damit beide Reihen gut ablesbar sind.
+        y: {
+          beginAtZero: true,
+          position: 'left',
+          ticks: { precision: 0, color: '#38bdf8' },
+        },
+        yKev: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { precision: 0, color: '#f97316' },
+        },
       },
       plugins: { legend: { position: 'top', align: 'end' } },
     },
@@ -275,11 +303,11 @@ function render(data) {
   renderList('list-certbund', data.lists.certBund, (it) => {
     const { status, severity, unpatched, text } = parseCertTitle(it.title);
     const dot = `<span class="dot ${severity ? `dot-${severity}` : ''}${unpatched ? ' unpatched' : ''}" title="${[severity, unpatched ? 'ungepatcht' : ''].filter(Boolean).join(', ')}"></span>`;
-    return `<li class="${status === 'update' ? 'item-update' : 'item-new'}">${dot}<div class="item-body"><span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</div></li>`;
+    return `<div class="nitem ${status === 'update' ? 'item-update' : 'item-new'}">${dot}<div class="item-body"><span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</div></div>`;
   });
 
   renderList('list-secnews', data.lists.securityNews, (it) =>
-    `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
+    `<div class="nitem"><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></div>`
   );
 
   const byDate = (a, b) => new Date(b.date || 0) - new Date(a.date || 0);
@@ -288,7 +316,7 @@ function render(data) {
     ...(data.lists.techNews || []).slice(0, 6),
   ].sort(byDate);
   renderList('list-tech', tech, (it) =>
-    `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
+    `<div class="nitem">${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></div>`
   );
 
   const politics = [
@@ -296,7 +324,7 @@ function render(data) {
     ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
   ].sort(byDate);
   renderList('list-politics', politics, (it) =>
-    `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
+    `<div class="nitem"><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></div>`
   );
 
   const SVC_DOTS = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
@@ -388,7 +416,16 @@ function render(data) {
   health.className = ok < data.sources.length ? 'stale' : '';
 }
 
+/* Dünner Fortschrittsbalken am oberen Rand bis zum nächsten Refresh */
+function restartProgress() {
+  const bar = el('refresh-progress');
+  bar.style.animation = 'none';
+  void bar.offsetWidth; // Animation zurücksetzen
+  bar.style.animation = `refresh-progress ${REFRESH_MS}ms linear forwards`;
+}
+
 async function refresh() {
+  restartProgress();
   try {
     const res = await fetch('/api/dashboard', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

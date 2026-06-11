@@ -39,13 +39,14 @@ Quellen (keine API-Schlüssel erforderlich):
 
 ### 4. Social-Media-Trends
 
-- **Mastodon Trending Tags** (`mastodon.social` für Breite,
-  `infosec.exchange` für Security-Fokus): öffentliche API ohne Key,
-  inkl. Nutzungszahlen der letzten 48 h
+- **Mastodon Trending Tags** von vier Instanzen (öffentliche API ohne Key,
+  inkl. Nutzungszahlen der letzten 48 h): `infosec.exchange` (Security),
+  `chaos.social` (deutsche Tech-Community), `fosstodon.org` (Open Source),
+  `mastodon.social` (Breite)
 - **Bluesky Trending Topics**: öffentliche API ohne Key
-- Ein **CTO-Relevanzfilter** (`CTO_TOPIC_PATTERNS` in `src/aggregator.js`)
-  sortiert Tech-/Security-/KI-/Digitalpolitik-Themen nach vorn; fachfremde
-  Trends füllen nur auf und werden gedimmt dargestellt.
+- Ein **strikter CTO-Relevanzfilter** (`CTO_TOPIC_PATTERNS` in
+  `src/aggregator.js`) lässt nur Tech-/Security-/KI-/Digitalpolitik-Themen
+  durch; globale Pop-Trends werden verworfen.
 - **X (Twitter) und Instagram bieten keine frei zugängliche Trends-API**:
   X-Trends gibt es nur über die kostenpflichtige API (Pro-Tier), Instagram
   hat gar keinen Trends-Endpunkt. Bei vorhandenem X-API-Zugang lässt sich
@@ -121,6 +122,8 @@ Entscheidungen:
   Schwachstellen (7/30 Tage), Ransomware-Bezug, CERT-Bund-Advisories, BSI-Warnungen
 - **Donut**: CVE-Schweregradverteilung (NVD, 7 Tage)
 - **Balken-Zeitreihe**: CERT-Bund-Advisories vs. KEV-Neuzugänge (14 Tage)
+  mit getrennten Y-Achsen (links Advisories, rechts KEV), da sich die
+  Größenordnungen stark unterscheiden
 - **Hersteller-Ranking**: meistbetroffene Vendoren im KEV-Katalog (90 Tage)
 - **4 Listen-Panels**: CERT-Bund (mit Risikoklasse-Badges), Security-News,
   Tech & KI, Deutschland & Welt
