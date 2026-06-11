@@ -1,0 +1,23 @@
+{
+  "name": "cto-intelligence",
+  "version": "1.0.0",
+  "description": "Kiosk-Dashboard für CTOs: Bedrohungslage, Tech- und KI-News für Deutschland, Europa und die Welt",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo": "DEMO=1 node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:33113/git/pxlwrk/cto-intelligence"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "express": "^5.2.1",
+    "rss-parser": "^3.13.0"
+  }
+}

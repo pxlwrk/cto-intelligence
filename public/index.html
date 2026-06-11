@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920" />
+  <title>CTO Intelligence – Lagebild</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="demo-banner" class="demo-banner hidden">DEMO-MODUS – Beispieldaten</div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-title">CTO&nbsp;INTELLIGENCE</div>
+      <div class="brand-sub">Lagebild · Deutschland · Europa · Welt</div>
+    </div>
+    <div id="threat-badge" class="threat-badge level-1">
+      <div class="threat-label">Cyber-Bedrohungslage</div>
+      <div id="threat-value" class="threat-value">–</div>
+    </div>
+    <div class="clockbox">
+      <div id="clock" class="clock">--:--:--</div>
+      <div id="date" class="date">–</div>
+      <div class="updated">Stand: <span id="updated">–</span> · Quellen: <span id="source-health">–</span></div>
+    </div>
+  </header>
+
+  <section class="kpi-row">
+    <div class="kpi kpi-critical"><div class="kpi-value" id="kpi-cve-critical">–</div><div class="kpi-label">Kritische CVEs<span>7 Tage · NVD</span></div></div>
+    <div class="kpi"><div class="kpi-value" id="kpi-cve-total">–</div><div class="kpi-label">CVEs gesamt<span>7 Tage · NVD</span></div></div>
+    <div class="kpi kpi-exploited"><div class="kpi-value" id="kpi-kev7">–</div><div class="kpi-label">Aktiv ausgenutzt<span>7 Tage · CISA KEV</span></div></div>
+    <div class="kpi"><div class="kpi-value" id="kpi-kev30">–</div><div class="kpi-label">Aktiv ausgenutzt<span>30 Tage · CISA KEV</span></div></div>
+    <div class="kpi kpi-ransom"><div class="kpi-value" id="kpi-ransom">–</div><div class="kpi-label">Ransomware-Bezug<span>30 Tage · CISA KEV</span></div></div>
+    <div class="kpi"><div class="kpi-value" id="kpi-certbund">–</div><div class="kpi-label">Advisories<span>7 Tage · CERT-Bund</span></div></div>
+    <div class="kpi kpi-bsi"><div class="kpi-value" id="kpi-bsi">–</div><div class="kpi-label">BSI-Warnungen<span>7 Tage · CSW</span></div></div>
+  </section>
+
+  <main class="grid">
+    <section class="panel chart-panel area-severity">
+      <h2>CVE-Schweregrade <span class="panel-sub">letzte 7 Tage · NVD</span></h2>
+      <div class="chart-wrap"><canvas id="chart-severity"></canvas></div>
+    </section>
+
+    <section class="panel chart-panel area-timeline">
+      <h2>Advisories &amp; aktive Ausnutzung <span class="panel-sub">14 Tage · CERT-Bund / CISA</span></h2>
+      <div class="chart-wrap"><canvas id="chart-timeline"></canvas></div>
+    </section>
+
+    <section class="panel chart-panel area-vendors">
+      <h2>Meistbetroffene Hersteller <span class="panel-sub">90 Tage · CISA KEV</span></h2>
+      <div class="chart-wrap"><canvas id="chart-vendors"></canvas></div>
+    </section>
+
+    <section class="panel area-certbund">
+      <h2>CERT-Bund Sicherheitshinweise</h2>
+      <ul id="list-certbund" class="newslist"></ul>
+    </section>
+
+    <section class="panel area-secnews">
+      <h2>Security-News <span class="panel-sub">heise Security · The Hacker News · BSI</span></h2>
+      <ul id="list-secnews" class="newslist"></ul>
+    </section>
+
+    <section class="panel area-tech">
+      <h2>Tech &amp; KI <span class="panel-sub">heise · Golem · VentureBeat · MIT TR</span></h2>
+      <ul id="list-tech" class="newslist"></ul>
+    </section>
+
+    <section class="panel area-politics">
+      <h2>Deutschland &amp; Welt <span class="panel-sub">Tagesschau</span></h2>
+      <ul id="list-politics" class="newslist"></ul>
+    </section>
+  </main>
+
+  <footer class="ticker">
+    <div class="ticker-label">TECH-PULS</div>
+    <div class="ticker-viewport"><div id="ticker-track" class="ticker-track"></div></div>
+  </footer>
+
+  <script src="/vendor/chartjs/chart.umd.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
