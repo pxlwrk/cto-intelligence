@@ -45,11 +45,26 @@ function fmtTime(iso) {
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
 
-/* CERT-Bund-Titel beginnen mit Risikoklasse, z. B. "[hoch] OpenSSL: …" */
-function splitSeverity(title) {
-  const m = title.match(/^\[(kritisch|hoch|mittel|niedrig)\]\s*(.*)$/i);
-  if (m) return { severity: m[1].toLowerCase(), text: m[2] };
-  return { severity: null, text: title };
+/*
+ * CERT-Bund-Titel tragen vorangestellte Klammer-Token in wechselnder
+ * Reihenfolge, z. B. "[NEU] [hoch] OpenSSL: …" oder "[UPDATE] [mittel] …".
+ * Risikoklasse wird zum Bullet, NEU/UPDATE zur Zeilen-Einfärbung.
+ */
+const SEVERITY_TOKENS = ['kritisch', 'hoch', 'mittel', 'niedrig'];
+function parseCertTitle(title) {
+  let status = null;
+  let severity = null;
+  let text = (title || '').trim();
+  let m;
+  while ((m = text.match(/^\[([^\]]+)\]\s*/))) {
+    const token = m[1].trim().toLowerCase();
+    if (token === 'neu') status = 'neu';
+    else if (token === 'update') status = 'update';
+    else if (SEVERITY_TOKENS.includes(token)) severity = token;
+    else break; // unbekanntes Token im Titel belassen
+    text = text.slice(m[0].length);
+  }
+  return { status, severity, text };
 }
 
 function meta(parts) {
@@ -207,13 +222,13 @@ function render(data) {
   renderVendorChart(data.charts.kevTopVendors);
 
   renderList('list-certbund', data.lists.certBund, (it) => {
-    const { severity, text } = splitSeverity(it.title);
+    const { status, severity, text } = parseCertTitle(it.title);
     const dot = `<span class="dot ${severity ? `dot-${severity}` : ''}" title="${severity || ''}"></span>`;
-    return `<li>${dot}<span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</li>`;
+    return `<li class="${status === 'update' ? 'item-update' : 'item-new'}">${dot}<div class="item-body"><span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</div></li>`;
   });
 
   renderList('list-secnews', data.lists.securityNews, (it) =>
-    `<li><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</li>`
+    `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
   );
 
   const tech = [
@@ -221,7 +236,7 @@ function render(data) {
     ...(data.lists.techNews || []).slice(0, 6),
   ];
   renderList('list-tech', tech, (it) =>
-    `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</li>`
+    `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
   );
 
   const politics = [
@@ -229,13 +244,16 @@ function render(data) {
     ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
   ];
   renderList('list-politics', politics, (it) =>
-    `<li><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</li>`
+    `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
   );
 
   const chips = (data.lists.socialTrends || []).map((t) => {
     const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';
-    const prefix = t.source === 'Mastodon' ? '#' : '';
-    return `<span class="chip ${t.source === 'Bluesky' ? 'chip-bsky' : ''}" title="${esc(t.source)}"><span class="chip-tag">${prefix}${esc(t.tag)}</span>${count}</span>`;
+    const prefix = t.source === 'Bluesky' ? '' : '#';
+    const cls = [t.source === 'Bluesky' ? 'chip-bsky' : '', t.cto ? 'chip-cto' : '']
+      .join(' ')
+      .trim();
+    return `<span class="chip ${cls}" title="${esc(t.source)}"><span class="chip-tag">${prefix}${esc(t.tag)}</span>${count}</span>`;
   });
   el('trend-chips').innerHTML =
     chips.join('') || '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';

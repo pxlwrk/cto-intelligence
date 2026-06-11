@@ -37,7 +37,22 @@ Quellen (keine API-Schlüssel erforderlich):
 
 - **VentureBeat AI** und **MIT Technology Review** (RSS): Industrie- und Forschungsperspektive auf KI
 
-### 4. Allgemeine Lage Deutschland / Welt
+### 4. Social-Media-Trends
+
+- **Mastodon Trending Tags** (`mastodon.social` für Breite,
+  `infosec.exchange` für Security-Fokus): öffentliche API ohne Key,
+  inkl. Nutzungszahlen der letzten 48 h
+- **Bluesky Trending Topics**: öffentliche API ohne Key
+- Ein **CTO-Relevanzfilter** (`CTO_TOPIC_PATTERNS` in `src/aggregator.js`)
+  sortiert Tech-/Security-/KI-/Digitalpolitik-Themen nach vorn; fachfremde
+  Trends füllen nur auf und werden gedimmt dargestellt.
+- **X (Twitter) und Instagram bieten keine frei zugängliche Trends-API**:
+  X-Trends gibt es nur über die kostenpflichtige API (Pro-Tier), Instagram
+  hat gar keinen Trends-Endpunkt. Bei vorhandenem X-API-Zugang lässt sich
+  ein Fetcher in `src/fetchers.js` ergänzen (Endpoint
+  `GET /2/trends/by/woeid/:id`, Bearer-Token als Env-Variable).
+
+### 5. Allgemeine Lage Deutschland / Welt
 
 - **Tagesschau api2u** ([inoffiziell dokumentierte JSON-API](https://github.com/bundesAPI/tagesschau-api)),
   Ressorts `inland` und `ausland`. Limit 60 Requests/h – der serverseitige

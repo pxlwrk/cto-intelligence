@@ -107,7 +107,13 @@ const SOURCES = [
     id: 'mastodonTrends',
     name: 'Mastodon Trending Tags',
     ttl: 15 * MIN,
-    fetch: () => fetchMastodonTrends(10),
+    fetch: () => fetchMastodonTrends('mastodon.social', 14),
+  },
+  {
+    id: 'infosecTrends',
+    name: 'infosec.exchange Trending Tags',
+    ttl: 15 * MIN,
+    fetch: () => fetchMastodonTrends('infosec.exchange', 10),
   },
   {
     id: 'blueskyTrends',
@@ -207,14 +213,35 @@ function mergeNews(lists, limit) {
     .slice(0, limit);
 }
 
-/** Mastodon (mit Nutzungszahlen) zuerst, Bluesky-Themen ohne Duplikate dahinter. */
-function mergeTrends(mastodon, bluesky, limit = 14) {
-  const seen = new Set(mastodon.map((t) => t.tag.toLowerCase()));
-  const merged = [
-    ...[...mastodon].sort((a, b) => (b.count || 0) - (a.count || 0)),
-    ...bluesky.filter((t) => !seen.has(t.tag.toLowerCase())),
-  ];
-  return merged.slice(0, limit);
+/**
+ * CTO-Relevanzfilter für Social-Trends: Tags zu Technologie, Cybersicherheit,
+ * KI und Digitalpolitik werden bevorzugt; allgemeine Trends füllen nur auf,
+ * wenn nicht genug fachliche Treffer vorhanden sind.
+ */
+const CTO_TOPIC_PATTERNS = [
+  /\b(ai|ki|llm|gpt|cve|5g|6g|iot|vpn|sso|api|soc|os)\b/i,
+  /cyber|secur|sicherheit|hack|breach|leak|ransom|malware|phish|exploit|zero.?day|vuln|patch|firewall|infosec|kritis|botnet|ddos|spyware|backdoor/i,
+  /cloud|software|open.?source|linux|windows|microsoft|google|apple|nvidia|chip|halbleiter|semicon|quant|crypto|krypto|encrypt|verschlüssel|datenschutz|privacy|datacenter|rechenzentrum/i,
+  /digital|verwaltung|behörde|infrastruktur|netzwerk|glasfaser|robot|automatis|telekom|outage|störung|ausfall|künstliche|intelligen/i,
+];
+
+function isCtoTopic(tag) {
+  return CTO_TOPIC_PATTERNS.some((re) => re.test(tag));
+}
+
+/** Quellen zusammenführen, deduplizieren, CTO-Themen nach vorn sortieren. */
+function mergeTrends(trendLists, limit = 14) {
+  const byTag = new Map();
+  for (const t of trendLists.flat()) {
+    const key = t.tag.toLowerCase();
+    const existing = byTag.get(key);
+    if (!existing || (t.count || 0) > (existing.count || 0)) byTag.set(key, t);
+  }
+  const all = [...byTag.values()];
+  const byCount = (a, b) => (b.count || 0) - (a.count || 0);
+  const relevant = all.filter((t) => isCtoTopic(t.tag)).sort(byCount);
+  const rest = all.filter((t) => !isCtoTopic(t.tag)).sort(byCount);
+  return [...relevant, ...rest].slice(0, limit).map((t) => ({ ...t, cto: isCtoTopic(t.tag) }));
 }
 
 async function buildDashboard() {
@@ -268,7 +295,11 @@ async function buildDashboard() {
       hackerNews: get('hn'),
       germany: get('tagesschauInland'),
       world: get('tagesschauAusland'),
-      socialTrends: mergeTrends(get('mastodonTrends'), get('blueskyTrends')),
+      socialTrends: mergeTrends([
+        get('infosecTrends'),
+        get('mastodonTrends'),
+        get('blueskyTrends'),
+      ]),
     },
     sources: SOURCES.map((s) => ({
       id: s.id,

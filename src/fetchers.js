@@ -137,12 +137,12 @@ async function fetchTagesschau(ressort, limit = 8) {
 }
 
 /** Trending Hashtags im Fediverse (öffentliche API, kein Key nötig) */
-async function fetchMastodonTrends(limit = 10) {
-  const data = await fetchJson('https://mastodon.social/api/v1/trends/tags?limit=' + limit);
+async function fetchMastodonTrends(instance = 'mastodon.social', limit = 10) {
+  const data = await fetchJson(`https://${instance}/api/v1/trends/tags?limit=${limit}`);
   return (data || []).map((t) => ({
     tag: t.name,
     count: (t.history || []).slice(0, 2).reduce((sum, h) => sum + Number(h.uses || 0), 0),
-    source: 'Mastodon',
+    source: instance,
   }));
 }
 
