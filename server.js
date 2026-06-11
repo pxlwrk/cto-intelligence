@@ -33,6 +33,12 @@ app.get('/api/dashboard', async (req, res) => {
 
 app.get('/healthz', (req, res) => res.json({ ok: true, demo: DEMO }));
 
-app.listen(PORT, () => {
-  console.log(`CTO-Intelligence-Dashboard läuft auf http://localhost:${PORT}${DEMO ? ' (DEMO-MODUS)' : ''}`);
-});
+// Beim Vercel-Deployment wird die App aus api/dashboard.js heraus genutzt;
+// lokal startet `node server.js` den Server direkt.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`CTO-Intelligence-Dashboard läuft auf http://localhost:${PORT}${DEMO ? ' (DEMO-MODUS)' : ''}`);
+  });
+}
+
+module.exports = app;

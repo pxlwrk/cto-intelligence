@@ -4,8 +4,10 @@
   "description": "Kiosk-Dashboard für CTOs: Bedrohungslage, Tech- und KI-News für Deutschland, Europa und die Welt",
   "main": "server.js",
   "scripts": {
+    "build": "node scripts/copy-vendor.js",
+    "prestart": "node scripts/copy-vendor.js",
     "start": "node server.js",
-    "demo": "DEMO=1 node server.js"
+    "demo": "DEMO=1 npm start"
   },
   "engines": {
     "node": ">=18"

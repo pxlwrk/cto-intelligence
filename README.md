@@ -96,6 +96,32 @@ PORT=8080 npm start  # anderer Port
 Voraussetzung: Node.js ≥ 18. Der Server braucht ausgehenden HTTPS-Zugriff auf
 die oben gelisteten Quellen (ggf. Proxy-Freigaben beantragen).
 
+### Hosting auf Vercel
+
+Das Repo ist Vercel-ready: `public/` wird statisch ausgeliefert,
+`api/dashboard.js` läuft als Serverless Function, das CDN cached die
+Aggregation 5 Minuten (`s-maxage=300`).
+
+1. Repo nach GitHub pushen bzw. Branch in `main` mergen.
+2. Auf [vercel.com](https://vercel.com) → **Add New… → Project** → das Repo
+   importieren. Framework-Preset **Other** – alle Einstellungen kommen aus
+   der mitgelieferten `vercel.json`, nichts anpassen.
+3. **Deploy** klicken. Das Dashboard liegt danach unter
+   `https://<projekt>.vercel.app`, die Daten unter `/api/dashboard`.
+
+Alternativ per CLI: `npm i -g vercel && vercel --prod` im Projektordner.
+
+Hinweise:
+
+- **Demo-Modus**: In den Projekt-Settings die Environment-Variable `DEMO=1`
+  setzen (und redeployen), um nur Beispieldaten zu zeigen.
+- **Funktionslaufzeit**: Die NVD-Abfrage kann durch das Rate-Limit 30–45 s
+  dauern; `vercel.json` setzt deshalb `maxDuration: 60`. Dank CDN-Cache
+  trifft das nur ca. einen Request alle 5 Minuten.
+- **Öffentlich erreichbar**: Ein Vercel-Deployment ist standardmäßig öffentlich.
+  Für ein internes Lagebild Schutz vorschalten (Vercel Deployment Protection /
+  Password Protection oder eigenes SSO).
+
 ### Kiosk-Modus (1080p-Monitor)
 
 Chromium/Chrome im Kiosk-Modus starten:
