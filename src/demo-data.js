@@ -162,13 +162,23 @@ function buildDemoDashboard() {
         { name: 'Anthropic', indicator: 'none', description: 'All Systems Operational' },
         { name: 'Slack', indicator: 'none', description: '' },
       ],
-      dwd: { total: 14, severe: 3, worst: 'Severe' },
+      dwd: {
+        total: 3,
+        severe: 1,
+        worst: 'Severe',
+        events: [
+          'Amtliche WARNUNG vor SCHWEREN STURMBÖEN',
+          'Amtliche WARNUNG vor GEWITTER',
+          'Amtliche WARNUNG vor STARKREGEN',
+        ],
+      },
+      civilProtection: [
+        { title: 'Stromausfall in Teilen von Berlin-Spandau: Netzbetreiber arbeitet an Behebung', provider: 'KATWARN', severity: 'Severe', date: iso(0, 6) },
+        { title: 'Bundesweiter Warntag: Probewarnung des BBK', provider: 'MOWAS', severity: 'Minor', date: iso(0, 11) },
+        { title: 'Polizeieinsatz Berlin-Mitte: Bereich um den Hauptbahnhof meiden', provider: 'POLIZEI', severity: 'Moderate', date: iso(0, 9) },
+      ],
       energy: { renShare: 64.2, signal: 2, loadGw: 58.4 },
       cloudflare: { outages24h: 9, outagesDe: 0, ddosTrendPct: 23 },
-      ninaWarnings: [
-        { title: 'Bundesweiter Warntag: Probewarnung des BBK', severity: 'Minor', date: iso(0, 11), channel: 'mowas' },
-        { title: 'Sturmtief über Norddeutschland: Behinderungen im Bahnverkehr', severity: 'Severe', date: iso(0, 6), channel: 'katwarn' },
-      ],
       socialTrends: [
         { tag: 'ZeroDay', count: 4100, source: 'infosec.exchange', cto: true },
         { tag: 'KRITIS', count: 3400, source: 'mastodon.social', cto: true },

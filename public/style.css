@@ -335,17 +335,19 @@ body {
   gap: 0;
 }
 .live-seg {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 4px;
-  padding: 0 22px;
+  padding: 0 18px;
   border-right: 1px solid var(--panel-border);
   white-space: nowrap;
   overflow: hidden;
 }
-.live-seg:first-child { padding-left: 4px; flex: 1 1 auto; }
+.live-seg:first-child { padding-left: 4px; }
 .live-seg:last-child { border-right: none; }
+.live-seg-grow { flex: 1 1 auto; min-width: 0; }
 .live-label {
   font-size: 11px;
   letter-spacing: 1.5px;
@@ -356,13 +358,25 @@ body {
 .live-content {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   font-size: 15px;
   color: var(--text);
 }
 .live-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.svc { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+.dwd-icons { font-size: 17px; letter-spacing: 3px; }
+
+/* Rollierende Bevölkerungsschutz-Meldung */
+.civil-content { min-width: 0; }
+.civil-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+.civil-content .item-meta { flex: 0 0 auto; }
+.civil-in { animation: civil-fade 0.6s ease; }
+@keyframes civil-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.svc { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
 .svc-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .svc-ok       { background: var(--low); }
 .svc-minor    { background: var(--medium); }

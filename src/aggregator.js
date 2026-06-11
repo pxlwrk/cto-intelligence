@@ -9,8 +9,7 @@ const {
   fetchMastodonTrends,
   fetchBlueskyTrends,
   fetchServiceStatus,
-  fetchNinaWarnings,
-  fetchDwdWarnings,
+  fetchNinaDashboard,
   fetchEnergy,
   fetchCloudflareRadar,
 } = require('./fetchers');
@@ -134,15 +133,9 @@ const SOURCES = [
   },
   {
     id: 'nina',
-    name: 'NINA/BBK Warnmeldungen',
+    name: 'NINA/BBK Warnmeldungen (Region Berlin)',
     ttl: 5 * MIN,
-    fetch: () => fetchNinaWarnings(5),
-  },
-  {
-    id: 'dwd',
-    name: 'DWD-Wetterwarnungen',
-    ttl: 10 * MIN,
-    fetch: fetchDwdWarnings,
+    fetch: () => fetchNinaDashboard(),
   },
   {
     id: 'energy',
@@ -304,7 +297,8 @@ function summarizeDwd(warnings) {
     (acc, w) => ((rank[w.severity] ?? 9) < (rank[acc] ?? 9) ? w.severity : acc),
     null
   );
-  return { total: warnings.length, severe: severe.length, worst };
+  const events = [...new Set(warnings.map((w) => w.title))].slice(0, 6);
+  return { total: warnings.length, severe: severe.length, worst, events };
 }
 
 async function buildDashboard() {
@@ -359,8 +353,12 @@ async function buildDashboard() {
       germany: get('tagesschauInland'),
       world: get('tagesschauAusland'),
       serviceStatus: get('serviceStatus'),
-      ninaWarnings: get('nina').slice(0, 3),
-      dwd: summarizeDwd(get('dwd')),
+      // DWD-Wetterwarnungen und Bevölkerungsschutz (alle übrigen Kanäle),
+      // beides auf die konfigurierte Region (Standard Berlin) beschränkt
+      dwd: summarizeDwd(get('nina').filter((w) => w.provider === 'DWD')),
+      civilProtection: get('nina')
+        .filter((w) => w.provider !== 'DWD')
+        .slice(0, 6),
       energy: get('energy', null),
       // null = nicht konfiguriert (Segment ausblenden); unavailable = gestört
       cloudflare: process.env.CLOUDFLARE_API_TOKEN

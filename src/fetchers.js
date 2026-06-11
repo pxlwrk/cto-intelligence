@@ -201,42 +201,27 @@ async function fetchServiceStatus() {
 }
 
 /**
- * Amtliche Warnmeldungen des Bundes (NINA-API des BBK, ohne Key):
- * MoWaS (Bevölkerungsschutz) und KATWARN, bundesweit.
+ * Amtliche Warnmeldungen für eine Region über den Dashboard-Endpunkt der
+ * NINA-API des BBK (ohne Key). Liefert alle Kanäle (MoWaS, KATWARN,
+ * BIWAPP, Polizei, Hochwasser, DWD) für den angegebenen Amtlichen
+ * Gemeindeschlüssel; Standard ist Berlin (110000000000).
  */
-async function fetchNinaWarnings(limit = 5) {
-  const channels = ['mowas', 'katwarn', 'biwapp'];
-  const results = await Promise.allSettled(
-    channels.map((c) => fetchJson(`https://warnung.bund.de/api31/${c}/mapData.json`))
-  );
+async function fetchNinaDashboard(ags = process.env.NINA_AGS || '110000000000') {
+  const data = await fetchJson(`https://warnung.bund.de/api31/dashboard/${ags}.json`);
   const rank = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3 };
-  const items = results
-    .flatMap((r, i) =>
-      r.status === 'fulfilled'
-        ? (r.value || []).map((w) => ({
-            title: w.i18nTitle?.de || w.headline || '',
-            severity: w.severity || 'Minor',
-            date: w.startDate || w.sent || null,
-            channel: channels[i],
-          }))
-        : []
-    )
-    .filter((w) => w.title);
-  return items
-    .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
-    .slice(0, limit);
-}
-
-/** DWD-Wetterwarnungen über den DWD-Kanal der NINA-API des Bundes. */
-async function fetchDwdWarnings() {
-  const data = await fetchJson('https://warnung.bund.de/api31/dwd/mapData.json');
   return (data || [])
-    .map((w) => ({
-      title: w.i18nTitle?.de || w.headline || '',
-      severity: w.severity || 'Minor',
-      date: w.startDate || w.sent || null,
-    }))
-    .filter((w) => w.title);
+    .map((w) => {
+      const payload = w.payload?.data || {};
+      const severity = (payload.severity || 'Minor').replace(/^./, (c) => c.toUpperCase());
+      return {
+        title: w.i18nTitle?.de || payload.headline || '',
+        provider: (payload.provider || String(w.id || '').split('.')[0] || '').toUpperCase(),
+        severity,
+        date: w.sent || w.onset || null,
+      };
+    })
+    .filter((w) => w.title)
+    .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9));
 }
 
 /**
@@ -317,8 +302,7 @@ module.exports = {
   fetchMastodonTrends,
   fetchBlueskyTrends,
   fetchServiceStatus,
-  fetchNinaWarnings,
-  fetchDwdWarnings,
+  fetchNinaDashboard,
   fetchEnergy,
   fetchCloudflareRadar,
 };

@@ -70,6 +70,54 @@ function parseCertTitle(title) {
   return { status, severity, unpatched, text };
 }
 
+/** Wetter-Icon aus dem Titel einer DWD-Warnung ableiten */
+function dwdIcon(headline) {
+  const t = (headline || '').toUpperCase();
+  if (/GEWITTER/.test(t)) return '⛈️';
+  if (/ORKAN|STURM|WIND|BÖEN/.test(t)) return '💨';
+  if (/SCHNEE/.test(t)) return '🌨️';
+  if (/GLÄTTE|GLATTEIS|FROST/.test(t)) return '🧊';
+  if (/REGEN/.test(t)) return '🌧️';
+  if (/HITZE/.test(t)) return '🌡️';
+  if (/UV/.test(t)) return '☀️';
+  if (/NEBEL/.test(t)) return '🌫️';
+  if (/HOCHWASSER|FLUT/.test(t)) return '🌊';
+  if (/TAUWETTER/.test(t)) return '💧';
+  return '⚠️';
+}
+
+/* Bevölkerungsschutz-Meldungen rollieren im Live-Segment durch */
+let civilItems = [];
+let civilIdx = 0;
+let civilTimer = null;
+
+function showCivilItem() {
+  const target = el('civil-status');
+  if (civilItems.length === 0) {
+    target.innerHTML = '<span class="svc-dot svc-ok"></span><span>keine aktiven Meldungen</span>';
+    return;
+  }
+  const SEV_DOTS = { Extreme: 'svc-critical', Severe: 'svc-major', Moderate: 'svc-minor', Minor: 'svc-minor' };
+  const it = civilItems[civilIdx % civilItems.length];
+  const counter = civilItems.length > 1 ? ` · ${(civilIdx % civilItems.length) + 1}/${civilItems.length}` : '';
+  target.classList.remove('civil-in');
+  void target.offsetWidth; // Animation neu starten
+  target.classList.add('civil-in');
+  target.innerHTML =
+    `<span class="svc-dot ${SEV_DOTS[it.severity] || 'svc-minor'}"></span>` +
+    `<span class="civil-title">${esc(it.title)}</span>` +
+    `<span class="item-meta">${esc(it.provider || '')}${counter}</span>`;
+  civilIdx++;
+}
+
+function startCivilRotation(items) {
+  civilItems = items || [];
+  civilIdx = 0;
+  clearInterval(civilTimer);
+  showCivilItem();
+  if (civilItems.length > 1) civilTimer = setInterval(showCivilItem, 7000);
+}
+
 function meta(parts) {
   const text = parts.filter(Boolean).join(' · ');
   return `<span class="item-meta">${text}</span>`;
@@ -243,24 +291,12 @@ function render(data) {
     `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></li>`
   );
 
-  const NINA_DOTS = { extreme: 'dot-kritisch', severe: 'dot-hoch', moderate: 'dot-mittel', minor: 'dot-niedrig' };
-  const nina = (data.lists.ninaWarnings || []).map((it) => ({
-    ...it,
-    region: 'NINA',
-    dot: NINA_DOTS[(it.severity || '').toLowerCase()] || 'dot-mittel',
-  }));
-  // NINA-Warnungen bleiben oben angepinnt, der Rest ist chronologisch gemischt
   const politics = [
-    ...nina,
-    ...[
-      ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, region: 'DE' })),
-      ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
-    ]
-      .sort(byDate)
-      .slice(0, 10 - Math.min(nina.length, 3)),
-  ];
+    ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, region: 'DE' })),
+    ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
+  ].sort(byDate);
   renderList('list-politics', politics, (it) =>
-    `<li>${it.dot ? `<span class="dot ${it.dot}"></span>` : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
+    `<li><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></li>`
   );
 
   const SVC_DOTS = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
@@ -274,15 +310,19 @@ function render(data) {
   const dwd = data.lists.dwd;
   if (dwd && dwd.total > 0) {
     const DWD_DOTS = { Extreme: 'svc-critical', Severe: 'svc-major', Moderate: 'svc-minor', Minor: 'svc-ok' };
+    const icons = [...new Set((dwd.events || []).map(dwdIcon))].join('');
     el('dwd-status').innerHTML =
       `<span class="svc-dot ${DWD_DOTS[dwd.worst] || 'svc-minor'}"></span>` +
       `<span><span class="live-value">${fmtNum(dwd.total)}</span> aktiv</span>` +
-      (dwd.severe > 0 ? `<span><span class="live-value">${fmtNum(dwd.severe)}</span> schwer</span>` : '');
+      (dwd.severe > 0 ? `<span><span class="live-value">${fmtNum(dwd.severe)}</span> schwer</span>` : '') +
+      (icons ? `<span class="dwd-icons" title="${esc((dwd.events || []).join('\n'))}">${icons}</span>` : '');
   } else if (dwd) {
     el('dwd-status').innerHTML = '<span class="svc-dot svc-ok"></span><span>keine Warnungen</span>';
   } else {
     el('dwd-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
   }
+
+  startCivilRotation(data.lists.civilProtection);
 
   const cf = data.lists.cloudflare;
   el('cloudflare-seg').classList.toggle('hidden', cf === null || cf === undefined);
@@ -290,11 +330,11 @@ function render(data) {
     const dot = cf.outagesDe > 0 ? 'svc-critical' : cf.outages24h >= 15 ? 'svc-minor' : 'svc-ok';
     const ddos =
       cf.ddosTrendPct !== null && cf.ddosTrendPct !== undefined
-        ? `<span>L7-DDoS <span class="live-value">${cf.ddosTrendPct > 0 ? '+' : ''}${cf.ddosTrendPct}&thinsp;%</span> vs. 7T</span>`
+        ? `<span title="Layer-7-DDoS-Volumen gegenüber 7-Tage-Schnitt">DDoS <span class="live-value">${cf.ddosTrendPct > 0 ? '+' : ''}${cf.ddosTrendPct}&thinsp;%</span></span>`
         : '';
     el('cloudflare-status').innerHTML =
       `<span class="svc-dot ${dot}"></span>` +
-      `<span><span class="live-value">${fmtNum(cf.outages24h)}</span> Ausfälle 24h</span>` +
+      `<span title="Gemeldete Internet-Ausfälle, letzte 24 h"><span class="live-value">${fmtNum(cf.outages24h)}</span> Ausfälle</span>` +
       `<span>DE <span class="live-value">${fmtNum(cf.outagesDe)}</span></span>` +
       ddos;
   } else if (cf) {
@@ -306,11 +346,11 @@ function render(data) {
     const AMPEL = { 0: 'svc-major', 1: 'svc-minor', 2: 'svc-ok', 3: 'svc-ok' };
     const load =
       energy.loadGw !== null && energy.loadGw !== undefined
-        ? `<span>Netzlast <span class="live-value">${energy.loadGw.toLocaleString('de-DE', { maximumFractionDigits: 1 })}</span> GW</span>`
+        ? `<span title="Aktuelle Netzlast">Last <span class="live-value">${energy.loadGw.toLocaleString('de-DE', { maximumFractionDigits: 1 })}</span> GW</span>`
         : '';
     el('energy-status').innerHTML =
       `<span class="svc-dot ${AMPEL[energy.signal] ?? 'svc-unknown'}" title="Strom-Ampel (EE-Anteil)"></span>` +
-      `<span>EE-Anteil <span class="live-value">${Math.round(energy.renShare)}&thinsp;%</span></span>` +
+      `<span title="Anteil erneuerbarer Energien">EE <span class="live-value">${Math.round(energy.renShare)}&thinsp;%</span></span>` +
       load;
   } else {
     el('energy-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';

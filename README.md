@@ -60,12 +60,13 @@ Quellen (keine API-Schlüssel erforderlich):
   Weitere Statuspage-kompatible Dienste lassen sich in
   `STATUS_PAGES` (`src/fetchers.js`) ergänzen; AWS/Azure bieten nur
   RSS-Feeds ohne sauberen Statusindikator und sind daher nicht enthalten.
-- **NINA/BBK-Warnmeldungen** (5 min TTL): amtliche Warnungen des
-  Bundesamts für Bevölkerungsschutz (MoWaS, KATWARN, BIWAPP) über die
-  [NINA-API](https://nina.api.bund.dev/), erscheinen mit Schweregrad-Bullet
-  im Panel „Deutschland & Welt".
-- **DWD-Wetterwarnungen** (10 min TTL): aktive amtliche Wetterwarnungen
-  über den DWD-Kanal der NINA-API, verdichtet zu Anzahl/Schweregrad-Ampel.
+- **NINA/BBK-Warnmeldungen, Region Berlin** (5 min TTL): amtliche Warnungen
+  über den Dashboard-Endpunkt der [NINA-API](https://nina.api.bund.dev/)
+  für einen Amtlichen Gemeindeschlüssel (Standard Berlin `110000000000`,
+  per Env-Variable `NINA_AGS` änderbar). Bevölkerungsschutz-Meldungen
+  (MoWaS, KATWARN, BIWAPP, Polizei, Hochwasser) rollieren im eigenen
+  Live-Segment alle 7 s durch; DWD-Wetterwarnungen werden separat zu
+  Anzahl/Schweregrad-Ampel plus Wetter-Icons (⛈️💨🌧️…) verdichtet.
 - **Stromnetz Deutschland** (15 min TTL): EE-Anteil-Ampel und aktuelle
   Netzlast über die [Energy-Charts-API](https://api.energy-charts.info/)
   des Fraunhofer ISE (ohne Key, KRITIS-Indikator).
