@@ -52,8 +52,14 @@ function splitSeverity(title) {
   return { severity: null, text: title };
 }
 
-function badge(text, cls) {
-  return `<span class="badge ${cls}">${text}</span>`;
+function meta(parts) {
+  const text = parts.filter(Boolean).join(' · ');
+  return `<span class="item-meta">${text}</span>`;
+}
+
+function fmtCount(n) {
+  if (n === null || n === undefined) return '';
+  return n >= 1000 ? (n / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + 'k' : String(n);
 }
 
 function renderList(id, items, render) {
@@ -202,29 +208,37 @@ function render(data) {
 
   renderList('list-certbund', data.lists.certBund, (it) => {
     const { severity, text } = splitSeverity(it.title);
-    const sevBadge = severity ? badge(severity, `badge-${severity}`) : '';
-    return `<li>${sevBadge}<span class="item-title">${esc(text)}</span><span class="item-time">${fmtTime(it.date)}</span></li>`;
+    const dot = `<span class="dot ${severity ? `dot-${severity}` : ''}" title="${severity || ''}"></span>`;
+    return `<li>${dot}<span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</li>`;
   });
 
   renderList('list-secnews', data.lists.securityNews, (it) =>
-    `<li>${badge(esc(it.source), 'badge-src')}<span class="item-title">${esc(it.title)}</span><span class="item-time">${fmtTime(it.date)}</span></li>`
+    `<li><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</li>`
   );
 
   const tech = [
-    ...(data.lists.aiNews || []).slice(0, 4).map((it) => ({ ...it, tag: 'KI', cls: 'badge-ki' })),
-    ...(data.lists.techNews || []).slice(0, 6).map((it) => ({ ...it, tag: it.source, cls: 'badge-src' })),
+    ...(data.lists.aiNews || []).slice(0, 4).map((it) => ({ ...it, ki: true })),
+    ...(data.lists.techNews || []).slice(0, 6),
   ];
   renderList('list-tech', tech, (it) =>
-    `<li>${badge(esc(it.tag), it.cls)}<span class="item-title">${esc(it.title)}</span><span class="item-time">${fmtTime(it.date)}</span></li>`
+    `<li>${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</li>`
   );
 
   const politics = [
-    ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, tag: 'DE', cls: 'badge-de' })),
-    ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, tag: 'Welt', cls: 'badge-welt' })),
+    ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, region: 'DE' })),
+    ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
   ];
   renderList('list-politics', politics, (it) =>
-    `<li>${badge(it.tag, it.cls)}<span class="item-title">${esc(it.title)}</span><span class="item-time">${fmtTime(it.date)}</span></li>`
+    `<li><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</li>`
   );
+
+  const chips = (data.lists.socialTrends || []).map((t) => {
+    const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';
+    const prefix = t.source === 'Mastodon' ? '#' : '';
+    return `<span class="chip ${t.source === 'Bluesky' ? 'chip-bsky' : ''}" title="${esc(t.source)}"><span class="chip-tag">${prefix}${esc(t.tag)}</span>${count}</span>`;
+  });
+  el('trend-chips').innerHTML =
+    chips.join('') || '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
 
   const tickerItems = [
     ...(data.lists.hackerNews || []).map(

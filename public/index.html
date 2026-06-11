@@ -35,6 +35,11 @@
     <div class="kpi kpi-bsi"><div class="kpi-value" id="kpi-bsi">–</div><div class="kpi-label">BSI-Warnungen<span>7 Tage · CSW</span></div></div>
   </section>
 
+  <section class="trends">
+    <div class="trends-label">SOCIAL-TRENDS</div>
+    <div id="trend-chips" class="trend-chips"></div>
+  </section>
+
   <main class="grid">
     <section class="panel chart-panel area-severity">
       <h2>CVE-Schweregrade <span class="panel-sub">letzte 7 Tage · NVD</span></h2>
@@ -52,7 +57,9 @@
     </section>
 
     <section class="panel area-certbund">
-      <h2>CERT-Bund Sicherheitshinweise</h2>
+      <h2>CERT-Bund Sicherheitshinweise
+        <span class="panel-sub sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig</span>
+      </h2>
       <ul id="list-certbund" class="newslist"></ul>
     </section>
 

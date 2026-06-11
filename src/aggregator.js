@@ -6,6 +6,8 @@ const {
   fetchNvdRecent,
   fetchHackerNews,
   fetchTagesschau,
+  fetchMastodonTrends,
+  fetchBlueskyTrends,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -102,6 +104,18 @@ const SOURCES = [
     fetch: () => fetchTagesschau('inland', 8),
   },
   {
+    id: 'mastodonTrends',
+    name: 'Mastodon Trending Tags',
+    ttl: 15 * MIN,
+    fetch: () => fetchMastodonTrends(10),
+  },
+  {
+    id: 'blueskyTrends',
+    name: 'Bluesky Trending Topics',
+    ttl: 15 * MIN,
+    fetch: () => fetchBlueskyTrends(8),
+  },
+  {
     id: 'tagesschauAusland',
     name: 'Tagesschau Ausland',
     ttl: 15 * MIN,
@@ -193,6 +207,16 @@ function mergeNews(lists, limit) {
     .slice(0, limit);
 }
 
+/** Mastodon (mit Nutzungszahlen) zuerst, Bluesky-Themen ohne Duplikate dahinter. */
+function mergeTrends(mastodon, bluesky, limit = 14) {
+  const seen = new Set(mastodon.map((t) => t.tag.toLowerCase()));
+  const merged = [
+    ...[...mastodon].sort((a, b) => (b.count || 0) - (a.count || 0)),
+    ...bluesky.filter((t) => !seen.has(t.tag.toLowerCase())),
+  ];
+  return merged.slice(0, limit);
+}
+
 async function buildDashboard() {
   const results = {};
   await Promise.all(
@@ -244,6 +268,7 @@ async function buildDashboard() {
       hackerNews: get('hn'),
       germany: get('tagesschauInland'),
       world: get('tagesschauAusland'),
+      socialTrends: mergeTrends(get('mastodonTrends'), get('blueskyTrends')),
     },
     sources: SOURCES.map((s) => ({
       id: s.id,

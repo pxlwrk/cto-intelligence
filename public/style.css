@@ -183,39 +183,84 @@ body {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 14.5px;
+  font-size: 15px;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   flex: 0 0 auto;
 }
 
+/* Headline im Vordergrund, Quelle/Zeit als dezente Meta-Info am Zeilenende */
 .newslist .item-title {
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text);
 }
-
-.badge {
+.item-meta {
   flex: 0 0 auto;
-  font-size: 10.5px;
-  font-weight: 700;
-  border-radius: 4px;
-  padding: 1px 6px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
-.badge-kritisch { background: #450a0a; color: var(--critical); }
-.badge-hoch     { background: #431407; color: var(--high); }
-.badge-mittel   { background: #422006; color: var(--medium); }
-.badge-niedrig  { background: #052e16; color: var(--low); }
-.badge-src      { background: #16213a; color: var(--text-dim); text-transform: none; }
-.badge-de       { background: #16213a; color: var(--accent); }
-.badge-welt     { background: #16213a; color: #a78bfa; }
-.badge-ki       { background: #2e1065; color: #c4b5fd; }
 
-.item-time { flex: 0 0 auto; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* Risikoklassen / Themen als kleine Bullets */
+.dot {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--none);
+  align-self: center;
+}
+.dot-kritisch { background: var(--critical); box-shadow: 0 0 6px var(--critical); }
+.dot-hoch     { background: var(--high); }
+.dot-mittel   { background: var(--medium); }
+.dot-niedrig  { background: var(--low); }
+.dot-ki       { background: #a78bfa; }
+
+.sev-legend { float: right; }
+.sev-legend .dot { width: 7px; height: 7px; margin: 0 3px 0 10px; vertical-align: middle; }
+
+/* ── Social-Media-Trends ─────────────────────────────────── */
+.trends {
+  flex: 0 0 auto;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  overflow: hidden;
+}
+.trends-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+}
+.trend-chips {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 13px;
+  font-size: 13.5px;
+}
+.chip-tag { color: var(--accent); font-weight: 600; }
+.chip-bsky .chip-tag { color: #a78bfa; }
+.chip-count { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 .empty-note { color: var(--text-dim); font-size: 13px; font-style: italic; }
 
