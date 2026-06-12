@@ -12,6 +12,7 @@ const {
   fetchNinaDashboard,
   fetchEnergy,
   fetchCloudflareRadar,
+  fetchWeather,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -154,6 +155,12 @@ const SOURCES = [
     name: 'Stromnetz (Fraunhofer ISE Energy-Charts)',
     ttl: 15 * MIN,
     fetch: fetchEnergy,
+  },
+  {
+    id: 'weather',
+    name: 'Wetter Berlin (Open-Meteo)',
+    ttl: 15 * MIN,
+    fetch: fetchWeather,
   },
   // Nur aktiv, wenn ein Token hinterlegt ist (Berechtigung „Radar: Read")
   ...(process.env.CLOUDFLARE_API_TOKEN
@@ -370,6 +377,7 @@ async function buildDashboard() {
         .filter((w) => w.provider !== 'DWD')
         .slice(0, 6),
       energy: get('energy', null),
+      weather: get('weather', null),
       // null = nicht konfiguriert (Segment ausblenden); unavailable = gestört
       cloudflare: process.env.CLOUDFLARE_API_TOKEN
         ? get('cloudflare', { unavailable: true })

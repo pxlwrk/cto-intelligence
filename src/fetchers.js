@@ -293,6 +293,40 @@ async function fetchCloudflareRadar() {
   return result;
 }
 
+/**
+ * Aktuelles Wetter für Berlin über Open-Meteo (ohne Key).
+ * Koordinaten per WEATHER_LAT/WEATHER_LON übersteuerbar.
+ */
+async function fetchWeather() {
+  const lat = process.env.WEATHER_LAT || '52.52';
+  const lon = process.env.WEATHER_LON || '13.41';
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,' +
+    'weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,pressure_msl,cloud_cover' +
+    '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset' +
+    '&timezone=Europe%2FBerlin&forecast_days=1';
+  const data = await fetchJson(url);
+  const c = data.current || {};
+  const d = data.daily || {};
+  return {
+    temp: c.temperature_2m ?? null,
+    feels: c.apparent_temperature ?? null,
+    humidity: c.relative_humidity_2m ?? null,
+    precip: c.precipitation ?? null,
+    code: c.weather_code ?? null,
+    windKmh: c.wind_speed_10m ?? null,
+    gustKmh: c.wind_gusts_10m ?? null,
+    windDir: c.wind_direction_10m ?? null,
+    pressure: c.pressure_msl ?? null,
+    cloud: c.cloud_cover ?? null,
+    tmax: d.temperature_2m_max?.[0] ?? null,
+    tmin: d.temperature_2m_min?.[0] ?? null,
+    sunrise: d.sunrise?.[0] ?? null,
+    sunset: d.sunset?.[0] ?? null,
+  };
+}
+
 module.exports = {
   fetchFeed,
   fetchKev,
@@ -305,4 +339,5 @@ module.exports = {
   fetchNinaDashboard,
   fetchEnergy,
   fetchCloudflareRadar,
+  fetchWeather,
 };

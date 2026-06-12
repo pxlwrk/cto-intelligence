@@ -71,6 +71,11 @@ Quellen (keine API-Schlüssel erforderlich):
 - **Stromnetz Deutschland** (15 min TTL): EE-Anteil-Ampel und aktuelle
   Netzlast über die [Energy-Charts-API](https://api.energy-charts.info/)
   des Fraunhofer ISE (ohne Key, KRITIS-Indikator).
+- **Wetter Berlin** (Kopfzeile, 15 min TTL): aktuelle Messwerte über die
+  [Open-Meteo-API](https://open-meteo.com/) (ohne Key) – Temperatur,
+  gefühlte Temperatur, Zustand mit Icon, Min/Max, Wind/Böen mit Richtung,
+  Luftfeuchte, Luftdruck, Niederschlag, Sonnenauf-/-untergang. Koordinaten
+  über `WEATHER_LAT`/`WEATHER_LON` änderbar (Standard Berlin-Mitte).
 - **Cloudflare Radar** (optional, 10 min TTL): gemeldete Internet-Ausfälle
   der letzten 24 h (weltweit und Deutschland) sowie der Trend des globalen
   Layer-7-DDoS-Volumens gegenüber dem 7-Tage-Schnitt. Erfordert einen
