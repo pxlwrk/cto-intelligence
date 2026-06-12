@@ -20,6 +20,8 @@ app.use(
 let inflight = null;
 
 app.get('/api/dashboard', async (req, res) => {
+  // Kein Zwischenspeichern durch Browser oder Proxys – Aktualität geht vor
+  res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
   if (DEMO) return res.json(buildDemoDashboard());
   try {
     // Gleichzeitige Anfragen teilen sich einen Aggregationslauf.

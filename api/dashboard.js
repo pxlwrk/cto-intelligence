@@ -3,20 +3,19 @@
 /**
  * Vercel Serverless Function: GET /api/dashboard
  *
- * Statt des In-Memory-Caches des lokalen Servers übernimmt hier das
- * Vercel-CDN das Caching (s-maxage) – Funktionsinstanzen sind kurzlebig,
- * warme Instanzen profitieren zusätzlich vom Aggregator-Cache.
+ * Bewusst KEIN CDN-/Proxy-Caching (no-store): Zwischenspeicher (Vercel-CDN,
+ * Behörden-Proxys) haben sonst veraltete Stände ausgeliefert. Das Caching
+ * der Quellen übernimmt allein der In-Memory-Cache des Aggregators, der
+ * auf warmen Funktionsinstanzen erhalten bleibt.
  */
 const { buildDashboard } = require('../src/aggregator');
 const { buildDemoDashboard } = require('../src/demo-data');
 
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
   try {
     const data = process.env.DEMO === '1' ? buildDemoDashboard() : await buildDashboard();
-    // 5 min CDN-Cache, bis 30 min wird Veraltetes sofort ausgeliefert und
-    // im Hintergrund erneuert – deckt sich mit dem 5-min-Refresh des Frontends.
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1800');
     res.statusCode = 200;
     res.end(JSON.stringify(data));
   } catch (err) {

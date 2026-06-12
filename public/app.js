@@ -491,17 +491,37 @@ function restartProgress() {
   bar.style.animation = `refresh-progress ${REFRESH_MS}ms linear forwards`;
 }
 
+let lastSuccess = Date.now();
+let retryScheduled = false;
+
 async function refresh() {
   restartProgress();
   try {
-    const res = await fetch('/api/dashboard', { cache: 'no-store' });
+    // Cache-Buster: eindeutige URL je Abruf, damit weder CDN noch Proxys
+    // eine alte Antwort ausliefern können.
+    const res = await fetch(`/api/dashboard?_=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    render(await res.json());
+    const data = await res.json();
+    render(data);
+    lastSuccess = Date.now();
   } catch (err) {
     console.error('Aktualisierung fehlgeschlagen:', err);
-    el('updated').innerHTML = '<span class="stale">Aktualisierung fehlgeschlagen</span>';
+    el('updated').innerHTML =
+      '<span class="stale">Aktualisierung fehlgeschlagen – neuer Versuch in 60 s</span>';
+    if (!retryScheduled) {
+      retryScheduled = true;
+      setTimeout(() => {
+        retryScheduled = false;
+        refresh();
+      }, 60 * 1000);
+    }
   }
 }
+
+// Selbstheilung: gelingt 30 Minuten lang kein Refresh, lädt die Seite neu
+setInterval(() => {
+  if (Date.now() - lastSuccess > 30 * 60 * 1000) location.reload();
+}, 60 * 1000);
 
 function tickClock() {
   const now = new Date();
