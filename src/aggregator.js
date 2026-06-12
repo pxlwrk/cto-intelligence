@@ -158,7 +158,7 @@ const SOURCES = [
   },
   {
     id: 'weather',
-    name: 'Wetter Berlin (Open-Meteo)',
+    name: 'Wetter Berlin (DWD/BrightSky, UV & Pollen DWD)',
     ttl: 15 * MIN,
     fetch: fetchWeather,
   },

@@ -71,11 +71,17 @@ Quellen (keine API-Schlüssel erforderlich):
 - **Stromnetz Deutschland** (15 min TTL): EE-Anteil-Ampel und aktuelle
   Netzlast über die [Energy-Charts-API](https://api.energy-charts.info/)
   des Fraunhofer ISE (ohne Key, KRITIS-Indikator).
-- **Wetter Berlin** (Kopfzeile, 15 min TTL): aktuelle Messwerte über die
-  [Open-Meteo-API](https://open-meteo.com/) (ohne Key) – Temperatur,
-  gefühlte Temperatur, Zustand mit Icon, Min/Max, Wind/Böen mit Richtung,
-  Luftfeuchte, Luftdruck, Niederschlag, Sonnenauf-/-untergang. Koordinaten
-  über `WEATHER_LAT`/`WEATHER_LON` änderbar (Standard Berlin-Mitte).
+- **Wetter Berlin** (Kopfzeile, 15 min TTL): amtliche DWD-Stationsmesswerte
+  über die [BrightSky-API](https://brightsky.dev/) (ohne Key) – Temperatur,
+  Zustand mit Icon, Wind/Böen mit Richtung, Luftfeuchte, Luftdruck,
+  Niederschlag; gefühlte Temperatur wird daraus berechnet. Ergänzt um
+  **UV-Index** (`uvi.json`) und **Pollenflug-Gefahrenindex** (`s31fg.json`)
+  direkt vom [DWD-OpenData-Server](https://opendata.dwd.de/climate_environment/health/alerts/)
+  sowie Tages-Min/Max und Sonnenzeiten von Open-Meteo. Konfigurierbar über
+  `WEATHER_LAT`/`WEATHER_LON`, `WEATHER_UV_CITY`, `WEATHER_POLLEN_REGION`.
+  Hinweis: Der DWD-Waldbrandgefahrenindex (WBI) hat keinen offiziellen
+  maschinenlesbaren Endpunkt (nur CDC-Rasterdaten bzw. ArcGIS-Mirror) und
+  ist daher nicht angebunden.
 - **Cloudflare Radar** (optional, 10 min TTL): gemeldete Internet-Ausfälle
   der letzten 24 h (weltweit und Deutschland) sowie der Trend des globalen
   Layer-7-DDoS-Volumens gegenüber dem 7-Tage-Schnitt. Erfordert einen

@@ -86,25 +86,29 @@ function dwdIcon(headline) {
   return '⚠️';
 }
 
-/** WMO-Wettercode (Open-Meteo) -> Icon und deutsche Beschreibung */
-function weatherCode(code) {
-  const map = [
-    [[0], '☀️', 'Klar'],
-    [[1], '🌤️', 'Überwiegend klar'],
-    [[2], '⛅', 'Teils bewölkt'],
-    [[3], '☁️', 'Bedeckt'],
-    [[45, 48], '🌫️', 'Nebel'],
-    [[51, 53, 55, 56, 57], '🌦️', 'Nieselregen'],
-    [[61, 63, 65, 66, 67], '🌧️', 'Regen'],
-    [[71, 73, 75, 77], '🌨️', 'Schneefall'],
-    [[80, 81, 82], '🌦️', 'Regenschauer'],
-    [[85, 86], '🌨️', 'Schneeschauer'],
-    [[95, 96, 99], '⛈️', 'Gewitter'],
-  ];
-  for (const [codes, icon, label] of map) {
-    if (codes.includes(code)) return { icon, label };
-  }
-  return { icon: '🌡️', label: '' };
+/** BrightSky-/DWD-Wetterzustand -> Icon und deutsche Beschreibung */
+const WEATHER_ICONS = {
+  'clear-day': ['☀️', 'Klar'],
+  'clear-night': ['🌙', 'Klar'],
+  'partly-cloudy-day': ['⛅', 'Teils bewölkt'],
+  'partly-cloudy-night': ['☁️', 'Teils bewölkt'],
+  cloudy: ['☁️', 'Bedeckt'],
+  fog: ['🌫️', 'Nebel'],
+  wind: ['💨', 'Windig'],
+  rain: ['🌧️', 'Regen'],
+  sleet: ['🌨️', 'Schneeregen'],
+  snow: ['🌨️', 'Schnee'],
+  hail: ['🌨️', 'Hagel'],
+  thunderstorm: ['⛈️', 'Gewitter'],
+  dry: ['🌡️', 'Trocken'],
+};
+
+const POLLEN_LEVELS = ['keine', 'gering', 'mittel', 'hoch'];
+function pollenText(level) {
+  if (level <= 0) return 'keine';
+  const lower = POLLEN_LEVELS[Math.floor(level)] || 'hoch';
+  const upper = POLLEN_LEVELS[Math.ceil(level)] || 'hoch';
+  return lower === upper ? lower : `${lower}–${upper}`;
 }
 
 function windCompass(deg) {
@@ -115,14 +119,26 @@ function windCompass(deg) {
 function renderWeather(w) {
   el('weather').classList.toggle('hidden', !w || w.temp === null);
   if (!w || w.temp === null) return;
-  const { icon, label } = weatherCode(w.code);
+  const [icon, label] = WEATHER_ICONS[w.icon] || ['🌡️', ''];
   const deg = (v) => (v === null || v === undefined ? '–' : `${v.toLocaleString('de-DE', { maximumFractionDigits: 1 })}°`);
   const hhmm = (iso) =>
     iso ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '–';
   el('weather-icon').textContent = icon;
   el('weather-temp').textContent = deg(w.temp);
   el('weather-desc').textContent = `${label ? label + ' · ' : ''}Berlin`;
-  const item = (l, v) => `<div class="wd-item"><span class="wd-label">${l}</span><span class="wd-value">${v}</span></div>`;
+  el('weather').title = w.station
+    ? `DWD-Station ${w.station} (via BrightSky) · UV & Pollen: DWD`
+    : 'DWD/BrightSky';
+  const pollen = w.pollen
+    ? w.pollen.top.length
+      ? `${esc(w.pollen.top[0].type)} ${pollenText(w.pollen.top[0].level)}`
+      : 'keine'
+    : '–';
+  const pollenTitle = w.pollen?.top
+    ?.map((p) => `${p.type}: ${pollenText(p.level)}`)
+    .join(', ');
+  const item = (l, v, title) =>
+    `<div class="wd-item"${title ? ` title="${esc(title)}"` : ''}><span class="wd-label">${l}</span><span class="wd-value">${v}</span></div>`;
   el('weather-details').innerHTML =
     item('Gefühlt', deg(w.feels)) +
     item('Min/Max', `${deg(w.tmin)}/${deg(w.tmax)}`) +
@@ -130,7 +146,9 @@ function renderWeather(w) {
     item('Böen', `${Math.round(w.gustKmh ?? 0)} km/h`) +
     item('Feuchte', `${Math.round(w.humidity ?? 0)} %`) +
     item('Druck', `${Math.round(w.pressure ?? 0)} hPa`) +
-    item('Regen', `${(w.precip ?? 0).toLocaleString('de-DE')} mm`) +
+    item('Regen', `${(w.precip ?? 0).toLocaleString('de-DE')} mm/h`) +
+    item('UV-Index', w.uv ?? '–') +
+    item('Pollen', pollen, pollenTitle) +
     item('Sonne', `${hhmm(w.sunrise)}–${hhmm(w.sunset)}`);
 }
 

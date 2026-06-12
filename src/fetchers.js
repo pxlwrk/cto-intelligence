@@ -293,38 +293,93 @@ async function fetchCloudflareRadar() {
   return result;
 }
 
+/** Pollen-Belastungsstufen des DWD ("2-3" -> 2.5) */
+function pollenLevel(value) {
+  if (!value || value === '-1') return 0;
+  const parts = String(value).split('-').map(Number);
+  return parts.reduce((a, b) => a + b, 0) / parts.length;
+}
+
 /**
- * Aktuelles Wetter für Berlin über Open-Meteo (ohne Key).
- * Koordinaten per WEATHER_LAT/WEATHER_LON übersteuerbar.
+ * Wetterblock: amtliche DWD-Stationsmesswerte über BrightSky, ergänzt um
+ * UV-Index und Pollenflug direkt vom DWD (opendata.dwd.de) sowie
+ * Tages-Min/Max und Sonnenzeiten von Open-Meteo. Gefühlte Temperatur wird
+ * aus Temperatur, Feuchte und Wind berechnet (Apparent Temperature).
  */
 async function fetchWeather() {
   const lat = process.env.WEATHER_LAT || '52.52';
   const lon = process.env.WEATHER_LON || '13.41';
-  const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,' +
-    'weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,pressure_msl,cloud_cover' +
-    '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset' +
-    '&timezone=Europe%2FBerlin&forecast_days=1';
-  const data = await fetchJson(url);
-  const c = data.current || {};
-  const d = data.daily || {};
-  return {
-    temp: c.temperature_2m ?? null,
-    feels: c.apparent_temperature ?? null,
-    humidity: c.relative_humidity_2m ?? null,
-    precip: c.precipitation ?? null,
-    code: c.weather_code ?? null,
-    windKmh: c.wind_speed_10m ?? null,
-    gustKmh: c.wind_gusts_10m ?? null,
-    windDir: c.wind_direction_10m ?? null,
-    pressure: c.pressure_msl ?? null,
-    cloud: c.cloud_cover ?? null,
-    tmax: d.temperature_2m_max?.[0] ?? null,
-    tmin: d.temperature_2m_min?.[0] ?? null,
-    sunrise: d.sunrise?.[0] ?? null,
-    sunset: d.sunset?.[0] ?? null,
+  const uvCity = process.env.WEATHER_UV_CITY || 'Berlin';
+  const pollenRegion = process.env.WEATHER_POLLEN_REGION || 'Berlin';
+
+  // Messwerte sind Pflicht – ohne sie gilt die Quelle als gestört
+  const cw = await fetchJson(`https://api.brightsky.dev/current_weather?lat=${lat}&lon=${lon}`);
+  const w = cw.weather || {};
+  const tempC = w.temperature ?? null;
+  const windKmh = w.wind_speed_10 ?? null;
+  let feels = null;
+  if (tempC !== null && w.relative_humidity != null && windKmh !== null) {
+    const e = (w.relative_humidity / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
+    feels = Math.round((tempC + 0.33 * e - 0.7 * (windKmh / 3.6) - 4) * 10) / 10;
+  }
+  const result = {
+    temp: tempC,
+    feels,
+    humidity: w.relative_humidity ?? null,
+    precip: w.precipitation_60 ?? w.precipitation_30 ?? null,
+    icon: w.icon || w.condition || null,
+    windKmh,
+    gustKmh: w.wind_gust_speed_10 ?? null,
+    windDir: w.wind_direction_10 ?? null,
+    pressure: w.pressure_msl ?? null,
+    cloud: w.cloud_cover ?? null,
+    station: cw.sources?.[0]?.station_name || null,
+    tmax: null,
+    tmin: null,
+    sunrise: null,
+    sunset: null,
+    uv: null,
+    pollen: null,
   };
+
+  // Zusatzwerte sind optional und fallen einzeln aus
+  const extras = await Promise.allSettled([
+    fetchJson(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset' +
+        '&timezone=Europe%2FBerlin&forecast_days=1'
+    ),
+    fetchJson('https://opendata.dwd.de/climate_environment/health/alerts/uvi.json'),
+    fetchJson('https://opendata.dwd.de/climate_environment/health/alerts/s31fg.json'),
+  ]);
+
+  if (extras[0].status === 'fulfilled') {
+    const d = extras[0].value.daily || {};
+    result.tmax = d.temperature_2m_max?.[0] ?? null;
+    result.tmin = d.temperature_2m_min?.[0] ?? null;
+    result.sunrise = d.sunrise?.[0] ?? null;
+    result.sunset = d.sunset?.[0] ?? null;
+  }
+  if (extras[1].status === 'fulfilled') {
+    const entry = (extras[1].value.content || []).find((c) =>
+      (c.city || '').toLowerCase().includes(uvCity.toLowerCase())
+    );
+    result.uv = entry?.forecast?.today ?? null;
+  }
+  if (extras[2].status === 'fulfilled') {
+    const region = (extras[2].value.content || []).find((c) =>
+      `${c.region_name} ${c.partregion_name}`.toLowerCase().includes(pollenRegion.toLowerCase())
+    );
+    if (region?.Pollen) {
+      const top = Object.entries(region.Pollen)
+        .map(([type, v]) => ({ type, level: pollenLevel(v.today) }))
+        .filter((p) => p.level > 0)
+        .sort((a, b) => b.level - a.level)
+        .slice(0, 2);
+      result.pollen = { max: top[0]?.level ?? 0, top };
+    }
+  }
+  return result;
 }
 
 module.exports = {
