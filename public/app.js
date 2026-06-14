@@ -20,7 +20,7 @@ const SEV_LABELS = {
 
 Chart.defaults.color = '#8b9bb4';
 Chart.defaults.borderColor = '#1f2a44';
-Chart.defaults.font.family = '"Segoe UI", "Inter", system-ui, sans-serif';
+Chart.defaults.font.family = "'Inter', 'Segoe UI', system-ui, sans-serif";
 Chart.defaults.font.size = 12;
 Chart.defaults.animation = false;
 Chart.defaults.plugins.legend.labels.boxWidth = 12;
@@ -198,7 +198,7 @@ function fmtCount(n) {
  * Feed-Panel rendern; läuft der Inhalt über, scrollt er langsam in einer
  * Endlosschleife (Inhalt wird dafür dupliziert).
  */
-const SCROLL_SPEED = 12; // Pixel pro Sekunde
+const SCROLL_SPEED = 8; // Pixel pro Sekunde – reduziert für Pi 3B
 
 function renderList(id, items, render) {
   const container = el(id);
@@ -212,7 +212,9 @@ function renderList(id, items, render) {
     const track = container.querySelector('.ntrack');
     if (!track || track.scrollHeight <= container.clientHeight + 4) return;
     track.innerHTML += track.innerHTML;
-    track.style.setProperty('--scroll-duration', `${track.scrollHeight / 2 / SCROLL_SPEED}s`);
+    const dur = Math.round(track.scrollHeight / 2 / SCROLL_SPEED);
+    track.style.setProperty('--scroll-duration', `${dur}s`);
+    track.style.transform = 'translateZ(0)';
     container.classList.add('scrolling');
   });
 }

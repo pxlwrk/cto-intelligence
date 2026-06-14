@@ -22,8 +22,10 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   cursor: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -103,6 +105,7 @@ body {
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', monospace;
 }
 .weather-desc { font-size: 12px; color: var(--text-dim); margin-top: 3px; white-space: nowrap; }
 .weather-details {
@@ -125,11 +128,14 @@ body {
 .threat-badge.level-1 { background: #052e1645; border-color: var(--low); color: var(--low); }
 .threat-badge.level-2 { background: #42200645; border-color: var(--medium); color: var(--medium); }
 .threat-badge.level-3 { background: #43140745; border-color: var(--high); color: var(--high); }
-.threat-badge.level-4 { background: #45091045; border-color: var(--critical); color: var(--critical); animation: pulse 2s infinite; }
-@keyframes pulse { 50% { box-shadow: 0 0 22px var(--critical); } }
+.threat-badge.level-4 { background: #45091045; border-color: var(--critical); color: var(--critical); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; box-shadow: 0 0 28px -4px var(--critical); }
+}
 
 .clockbox { text-align: right; }
-.clock { font-size: 38px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.clock { font-size: 38px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; font-family: 'JetBrains Mono', monospace; }
 .date { font-size: 15px; color: var(--text-dim); margin-top: 2px; }
 .updated { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
 .updated #updated { color: var(--accent); font-weight: 600; }
@@ -159,6 +165,8 @@ body {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -1px;
 }
 .kpi-critical .kpi-value { color: var(--critical); }
 .kpi-exploited .kpi-value { color: var(--high); }
@@ -204,13 +212,12 @@ body {
 
 .panel h2 {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   margin-bottom: 8px;
   color: var(--text);
   flex: 0 0 auto;
@@ -221,6 +228,27 @@ body {
   color: var(--text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-left: auto;
+}
+
+/* SVG-Panelicon (inline, kein CDN) */
+.ph {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.55;
+}
+.ph-sm {
+  width: 11px;
+  height: 11px;
+  opacity: 0.5;
 }
 
 .chart-wrap { flex: 1 1 auto; min-height: 0; position: relative; }
@@ -231,9 +259,35 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  /* Überzählige Einträge laufen sanft aus statt hart abzuschneiden */
-  mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+  position: relative;
+  /* GPU-Layer für den Container */
+  transform: translateZ(0);
+  contain: layout style;
 }
+
+/* Auslaufgradient am unteren Rand (pseudo-element statt mask-image: GPU-effizienter) */
+.newslist::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 22px;
+  background: linear-gradient(transparent, var(--panel));
+  pointer-events: none;
+  z-index: 2;
+}
+/* Einlaufgradient oben – nur beim Scrollen sichtbar */
+.newslist::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 14px;
+  background: linear-gradient(var(--panel), transparent);
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.newslist.scrolling::before { opacity: 1; }
 
 .ntrack {
   display: flex;
@@ -242,11 +296,10 @@ body {
 }
 
 /* Läuft der Inhalt über, scrollt er langsam in einer Endlosschleife */
-.newslist.scrolling {
-  mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 14px), transparent);
-}
 .newslist.scrolling .ntrack {
   animation: feed-scroll var(--scroll-duration, 60s) linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 @keyframes feed-scroll {
   from { transform: translateY(0); }
@@ -407,6 +460,9 @@ body {
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 .live-label em { font-style: normal; color: var(--low); }
 .live-content {
@@ -416,7 +472,7 @@ body {
   font-size: 15px;
   color: var(--text);
 }
-.live-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.live-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; }
 
 .dwd-icons { font-size: 17px; letter-spacing: 3px; }
 
@@ -424,10 +480,10 @@ body {
 .civil-content { min-width: 0; }
 .civil-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
 .civil-content .item-meta { flex: 0 0 auto; }
-.civil-in { animation: civil-fade 0.6s ease; }
+.civil-in { animation: civil-fade 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes civil-fade {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .svc { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
@@ -446,6 +502,9 @@ body {
   padding-left: 100%;
   animation: ticker 90s linear infinite;
   font-size: 14.5px;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .ticker-track .score { color: var(--high); font-weight: 700; margin-right: 6px; }
 @keyframes ticker {

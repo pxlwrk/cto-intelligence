@@ -4,9 +4,66 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1920" />
   <title>CTO Intelligence – Lagebild</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- SVG icon sprite – inline, kein CDN erforderlich -->
+  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;position:absolute">
+    <symbol id="i-shield" viewBox="0 0 24 24">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+    </symbol>
+    <symbol id="i-shield-ok" viewBox="0 0 24 24">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+      <path d="m9 12 2 2 4-4"/>
+    </symbol>
+    <symbol id="i-bar-chart" viewBox="0 0 24 24">
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </symbol>
+    <symbol id="i-alert-tri" viewBox="0 0 24 24">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+      <path d="M12 9v4"/>
+      <path d="M12 17h.01"/>
+    </symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </symbol>
+    <symbol id="i-newspaper" viewBox="0 0 24 24">
+      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+      <path d="M18 14h-8"/><path d="M15 18h-5"/>
+      <path d="M10 6h8v4h-8V6Z"/>
+    </symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24">
+      <rect x="4" y="4" width="16" height="16" rx="2"/>
+      <rect x="9" y="9" width="6" height="6"/>
+      <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+      <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+      <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+      <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+    </symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+    </symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24">
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+    </symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24">
+      <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+      <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+      <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </symbol>
+  </svg>
+
   <div id="refresh-progress" title="Zeit bis zur nächsten Aktualisierung"></div>
   <div id="demo-banner" class="demo-banner hidden">DEMO-MODUS – Beispieldaten</div>
 
@@ -53,61 +110,103 @@
 
   <main class="grid">
     <section class="panel chart-panel area-severity">
-      <h2>CVE-Schweregrade <span class="panel-sub">letzte 7 Tage · NVD</span></h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-shield-ok"/></svg>
+        CVE-Schweregrade
+        <span class="panel-sub">letzte 7 Tage · NVD</span>
+      </h2>
       <div class="chart-wrap"><canvas id="chart-severity"></canvas></div>
     </section>
 
     <section class="panel chart-panel area-timeline">
-      <h2>Advisories &amp; aktive Ausnutzung <span class="panel-sub">14 Tage · CERT-Bund / CISA</span></h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-bar-chart"/></svg>
+        Advisories &amp; aktive Ausnutzung
+        <span class="panel-sub">14 Tage · CERT-Bund / CISA</span>
+      </h2>
       <div class="chart-wrap"><canvas id="chart-timeline"></canvas></div>
     </section>
 
     <section class="panel chart-panel area-vendors">
-      <h2>Meistbetroffene Hersteller <span class="panel-sub">90 Tage · CISA KEV</span></h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-alert-tri"/></svg>
+        Meistbetroffene Hersteller
+        <span class="panel-sub">90 Tage · CISA KEV</span>
+      </h2>
       <div class="chart-wrap"><canvas id="chart-vendors"></canvas></div>
     </section>
 
     <section class="panel live-row area-live">
       <div class="live-seg">
-        <span class="live-label">Dienste-Status <em>live</em></span>
+        <span class="live-label">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-activity"/></svg>
+          Dienste-Status <em>live</em>
+        </span>
         <div class="live-content" id="svc-status"></div>
       </div>
       <div class="live-seg live-seg-grow">
-        <span class="live-label">Bevölkerungsschutz · Berlin</span>
+        <span class="live-label">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-alert-tri"/></svg>
+          Bevölkerungsschutz · Berlin
+        </span>
         <div class="live-content civil-content" id="civil-status"></div>
       </div>
       <div class="live-seg">
-        <span class="live-label">DWD-Warnungen · Berlin</span>
+        <span class="live-label">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-cloud"/></svg>
+          DWD-Warnungen · Berlin
+        </span>
         <div class="live-content" id="dwd-status"></div>
       </div>
       <div class="live-seg">
-        <span class="live-label">Stromnetz DE · Fraunhofer ISE</span>
+        <span class="live-label">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-zap"/></svg>
+          Stromnetz DE · Fraunhofer ISE
+        </span>
         <div class="live-content" id="energy-status"></div>
       </div>
       <div class="live-seg hidden" id="cloudflare-seg">
-        <span class="live-label">Internet · Cloudflare Radar</span>
+        <span class="live-label">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-wifi"/></svg>
+          Internet · Cloudflare Radar
+        </span>
         <div class="live-content" id="cloudflare-status"></div>
       </div>
     </section>
 
     <section class="panel area-certbund">
-      <h2>CERT-Bund Sicherheitshinweise</h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-shield"/></svg>
+        CERT-Bund Sicherheitshinweise
+      </h2>
       <div class="sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig · <i class="dot dot-ring"></i>ungepatcht · gedimmt&nbsp;=&nbsp;Update</div>
       <div id="list-certbund" class="newslist"></div>
     </section>
 
     <section class="panel area-secnews">
-      <h2>Security-News <span class="panel-sub">heise Security · The Hacker News · BSI</span></h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-newspaper"/></svg>
+        Security-News
+        <span class="panel-sub">heise Security · The Hacker News · BSI</span>
+      </h2>
       <div id="list-secnews" class="newslist"></div>
     </section>
 
     <section class="panel area-tech">
-      <h2>Tech &amp; KI <span class="panel-sub">heise · Golem · VentureBeat · MIT TR</span></h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-cpu"/></svg>
+        Tech &amp; KI
+        <span class="panel-sub">heise · Golem · VentureBeat · MIT TR</span>
+      </h2>
       <div id="list-tech" class="newslist"></div>
     </section>
 
     <section class="panel area-politics">
-      <h2>Deutschland &amp; Welt <span class="panel-sub">Tagesschau</span></h2>
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-globe"/></svg>
+        Deutschland &amp; Welt
+        <span class="panel-sub">Tagesschau</span>
+      </h2>
       <div id="list-politics" class="newslist"></div>
     </section>
   </main>
