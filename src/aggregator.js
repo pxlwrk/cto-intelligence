@@ -13,6 +13,7 @@ const {
   fetchEnergy,
   fetchCloudflareRadar,
   fetchWeather,
+  fetchBcix,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -179,6 +180,12 @@ const SOURCES = [
     ttl: 15 * MIN,
     fetch: () => fetchTagesschau('ausland', 8),
   },
+  {
+    id: 'bcix',
+    name: 'BCIX Berlin Internet Exchange',
+    ttl: 3 * MIN,
+    fetch: fetchBcix,
+  },
 ];
 
 const cache = new Map(); // id -> { data, fetchedAt, error }
@@ -271,10 +278,10 @@ function mergeNews(lists, limit) {
  * wenn nicht genug fachliche Treffer vorhanden sind.
  */
 const CTO_TOPIC_PATTERNS = [
-  /\b(ai|ki|llm|gpt|cve|5g|6g|iot|vpn|sso|api|soc)\b/i,
-  /cyber|secur|sicherheit|hack|breach|leak|ransom|malware|phish|exploit|zero.?day|vuln|patch|firewall|infosec|kritis|botnet|ddos|spyware|backdoor|darknet|cisa|bsi\b/i,
-  /cloud|software|open.?source|linux|windows|microsoft|google|apple|nvidia|intel\b|amd\b|sap\b|chip|halbleiter|semicon|quant|crypto|krypto|encrypt|verschlüssel|datenschutz|privacy|datacenter|rechenzentrum|server|kernel|browser|android|iphone/i,
-  /digital|verwaltung|behörde|infrastruktur|netzwerk|glasfaser|robot|automatis|telekom|outage|störung|ausfall|künstliche|intelligen|nis.?2|dsgvo|gdpr|dora\b|eidas|ai.?act|datenleck|datenpanne|chatgpt|copilot|gemini|claude|deepseek|mistral|openai|anthropic/i,
+  /\b(ai|ki|llm|gpt|cve|5g|6g|iot|vpn|sso|api|soc|aws|gcp|k8s|oss|gnu|cli|sdk|bgp|asn|ix\b)\b/i,
+  /cyber|secur|sicherheit|hack|breach|leak|ransom|malware|phish|exploit|zero.?day|vuln|patch|firewall|infosec|kritis|botnet|ddos|spyware|backdoor|darknet|cisa|bsi\b|pentest|ctf\b|nist\b|cvss|soc2|iso.?27/i,
+  /cloud|software|open.?source|linux|unix|windows|microsoft|google|apple|nvidia|intel\b|amd\b|sap\b|chip|halbleiter|semicon|quant|crypto|krypto|encrypt|verschlüssel|datenschutz|privacy|datacenter|rechenzentrum|server|kernel|browser|android|iphone|foss|python|rust\b|golang|javascript|typescript|nodejs|react\b|kotlin|docker|kubernetes|terraform|ansible|gitlab|github|devops|devsecops|platform|framework|saas|paas|iaas|postgres|redis|elasticsearch/i,
+  /digital|verwaltung|behörde|infrastruktur|netzwerk|glasfaser|robot|automatis|telekom|outage|störung|ausfall|künstliche|intelligen|nis.?2|dsgvo|gdpr|dora\b|eidas|ai.?act|datenleck|datenpanne|chatgpt|copilot|gemini|claude|deepseek|mistral|openai|anthropic|internet.?exchange|peering|routing|bgp\b|anycast/i,
 ];
 
 function isCtoTopic(tag) {
@@ -289,22 +296,29 @@ function isCtoTopic(tag) {
 }
 
 /**
- * Quellen zusammenführen, deduplizieren und strikt auf CTO-Themen filtern.
- * Globale Pop-Trends werden verworfen – die fachliche Breite kommt aus
- * den Tech-Instanzen (infosec.exchange, chaos.social, fosstodon.org).
+ * Quellen zusammenführen, deduplizieren und auf CTO-Themen filtern.
+ * Globale Pop-Trends werden verworfen; wenn weniger als 5 CTO-Tags
+ * verfügbar sind (z. B. wegen Quellausfällen), wird mit allgemeinen
+ * Tech-Trends aufgefüllt – kenntlich gemacht durch `cto: false`.
  */
 function mergeTrends(trendLists, limit = 14) {
   const byTag = new Map();
   for (const t of trendLists.flat()) {
+    if (!t?.tag) continue;
     const key = t.tag.toLowerCase();
     const existing = byTag.get(key);
     if (!existing || (t.count || 0) > (existing.count || 0)) byTag.set(key, t);
   }
-  return [...byTag.values()]
-    .filter((t) => isCtoTopic(t.tag))
-    .sort((a, b) => (b.count || 0) - (a.count || 0))
-    .slice(0, limit)
-    .map((t) => ({ ...t, cto: true }));
+  const sorted = [...byTag.values()].sort((a, b) => (b.count || 0) - (a.count || 0));
+  const ctoTags = sorted.filter((t) => isCtoTopic(t.tag)).slice(0, limit).map((t) => ({ ...t, cto: true }));
+  if (ctoTags.length >= 5) return ctoTags;
+  // Auffüllen: allgemeine Tags ohne CTO-Bezug, gedimmt dargestellt
+  const usedKeys = new Set(ctoTags.map((t) => t.tag.toLowerCase()));
+  const extra = sorted
+    .filter((t) => !usedKeys.has(t.tag.toLowerCase()))
+    .slice(0, limit - ctoTags.length)
+    .map((t) => ({ ...t, cto: false }));
+  return [...ctoTags, ...extra];
 }
 
 function summarizeDwd(warnings) {
@@ -382,6 +396,7 @@ async function buildDashboard() {
       cloudflare: process.env.CLOUDFLARE_API_TOKEN
         ? get('cloudflare', { unavailable: true })
         : null,
+      bcix: get('bcix', null),
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('chaosTrends'),

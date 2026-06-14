@@ -382,6 +382,43 @@ async function fetchWeather() {
   return result;
 }
 
+/**
+ * BCIX Berlin Internet Exchange – Status und optionale Traffic-Metrik.
+ * Erwartet eine Cachet-v1-kompatible API unter status.bcix.net.
+ * Status-Codes: 1 = Operational, 2 = Performance Issues,
+ *               3 = Partial Outage, 4 = Major Outage.
+ */
+async function fetchBcix() {
+  const INDICATOR = { 1: 'none', 2: 'minor', 3: 'major', 4: 'critical' };
+  const comp = await fetchJson('https://status.bcix.net/api/v1/components');
+  const rawComponents = comp.data || [];
+  const components = rawComponents.map((c) => ({
+    name: c.name,
+    indicator: INDICATOR[c.status] || 'unknown',
+    enabled: c.enabled !== false,
+  })).filter((c) => c.enabled);
+
+  const worstNum = rawComponents.reduce((w, c) => Math.max(w, c.status || 1), 1);
+
+  // Optionale Sparkline-Daten aus der ersten Cachet-Metrik
+  let points = [];
+  let metricName = '';
+  try {
+    const mData = await fetchJson('https://status.bcix.net/api/v1/metrics');
+    const m = (mData.data || [])[0];
+    if (m?.id) {
+      metricName = m.name || '';
+      const pData = await fetchJson(
+        `https://status.bcix.net/api/v1/metric-points?metric_id=${m.id}` +
+        `&sort=id&order=desc&per_page=24`
+      );
+      points = (pData.data || []).map((p) => p.value).reverse();
+    }
+  } catch { /* Metrik-Daten optional */ }
+
+  return { indicator: INDICATOR[worstNum] || 'none', components, points, metricName };
+}
+
 module.exports = {
   fetchFeed,
   fetchKev,
@@ -395,4 +432,5 @@ module.exports = {
   fetchEnergy,
   fetchCloudflareRadar,
   fetchWeather,
+  fetchBcix,
 };

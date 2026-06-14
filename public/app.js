@@ -346,6 +346,39 @@ function renderVendorChart(vendors) {
   }
 }
 
+function renderBcixChart(points) {
+  const ctx = el('chart-bcix');
+  const cfg = {
+    type: 'line',
+    data: {
+      labels: points.map(() => ''),
+      datasets: [{
+        data: points,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56,189,248,0.15)',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.4,
+      }],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { display: false },
+        y: { display: false, beginAtZero: false },
+      },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    },
+  };
+  if (charts.bcix) {
+    charts.bcix.data.datasets[0].data = points;
+    charts.bcix.update();
+  } else {
+    charts.bcix = new Chart(ctx, cfg);
+  }
+}
+
 /* ── Rendern ───────────────────────────────────────────────── */
 
 function render(data) {
@@ -456,13 +489,37 @@ function render(data) {
   const chips = (data.lists.socialTrends || []).map((t) => {
     const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';
     const prefix = t.source === 'Bluesky' ? '' : '#';
-    const cls = [t.source === 'Bluesky' ? 'chip-bsky' : '', t.cto ? 'chip-cto' : '']
+    const cls = [t.source === 'Bluesky' ? 'chip-bsky' : '', t.cto ? 'chip-cto' : 'chip-dim']
       .join(' ')
       .trim();
     return `<span class="chip ${cls}" title="${esc(t.source)}"><span class="chip-tag">${prefix}${esc(t.tag)}</span>${count}</span>`;
   });
   el('trend-chips').innerHTML =
-    chips.join('') || '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
+    chips.join('') || '<span class="empty-note">Keine Trend-Daten verfügbar</span>';
+
+  // ── BCIX Internet Exchange ──────────────────────────────────
+  const bcix = data.lists.bcix;
+  const SVC_DOTS2 = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
+  if (bcix && !bcix._unavailable) {
+    el('bcix-status').innerHTML =
+      `<span class="svc-dot ${SVC_DOTS2[bcix.indicator] || 'svc-unknown'}"></span>` +
+      `<span>${bcix.indicator === 'none' ? 'Betrieb normal' : bcix.indicator === 'minor' ? 'Störung' : bcix.indicator === 'major' ? 'Teilausfall' : 'Kritisch'}</span>`;
+    el('bcix-components').innerHTML = (bcix.components || [])
+      .map((c) => `<span class="svc" title="${esc(c.name)}"><span class="svc-dot ${SVC_DOTS2[c.indicator] || 'svc-unknown'}"></span>${esc(c.name)}</span>`)
+      .join('') || '<span class="empty-note">keine Komponentendaten</span>';
+    if (bcix.points?.length > 1) {
+      if (bcix.metricName) el('bcix-metric-label').textContent = bcix.metricName;
+      renderBcixChart(bcix.points);
+    } else {
+      el('bcix-metric-label').classList.add('hidden');
+      el('chart-bcix').closest('.bcix-chart-wrap').classList.add('hidden');
+    }
+  } else {
+    el('bcix-status').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
+    el('bcix-components').innerHTML = '';
+    el('bcix-metric-label').classList.add('hidden');
+    el('chart-bcix').closest('.bcix-chart-wrap').classList.add('hidden');
+  }
 
   const tickerItems = [
     ...(data.lists.hackerNews || []).map(

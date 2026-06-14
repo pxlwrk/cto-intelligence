@@ -63,6 +63,17 @@
       <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
       <line x1="12" y1="20" x2="12.01" y2="20"/>
     </symbol>
+    <symbol id="i-server" viewBox="0 0 24 24">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+      <line x1="6" y1="6" x2="6.01" y2="6"/>
+      <line x1="6" y1="18" x2="6.01" y2="18"/>
+    </symbol>
+    <symbol id="i-share2" viewBox="0 0 24 24">
+      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+    </symbol>
   </svg>
 
   <div id="refresh-progress" title="Zeit bis zur nächsten Aktualisierung"></div>
@@ -135,6 +146,24 @@
         <span class="panel-sub">90 Tage · CISA KEV</span>
       </h2>
       <div class="chart-wrap"><canvas id="chart-vendors"></canvas></div>
+    </section>
+
+    <section class="panel live-row area-bcix" id="bcix-panel">
+      <div class="live-seg">
+        <span class="live-label">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-share2"/></svg>
+          BCIX Berlin · Internet Exchange
+        </span>
+        <div class="live-content" id="bcix-status"></div>
+      </div>
+      <div class="live-seg">
+        <span class="live-label">Komponenten</span>
+        <div class="live-content" id="bcix-components"></div>
+      </div>
+      <div class="live-seg live-seg-grow">
+        <span class="live-label" id="bcix-metric-label">Traffic-Verlauf</span>
+        <div class="bcix-chart-wrap"><canvas id="chart-bcix"></canvas></div>
+      </div>
     </section>
 
     <section class="panel live-row area-live">

@@ -181,15 +181,17 @@ body {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: 42fr 58px 52fr;
+  grid-template-rows: 36fr 68px 58px 46fr;
   gap: 12px;
   grid-template-areas:
     "sev  sev  sev  tim  tim  tim  tim  tim  ven  ven  ven  ven"
+    "bcix bcix bcix bcix bcix bcix bcix bcix bcix bcix bcix bcix"
     "live live live live live live live live live live live live"
     "cb   cb   cb   sec  sec  sec  tech tech tech pol  pol  pol";
 }
 
 .area-live { grid-area: live; }
+.area-bcix { grid-area: bcix; }
 
 .area-severity { grid-area: sev; }
 .area-timeline { grid-area: tim; }
@@ -198,6 +200,15 @@ body {
 .area-secnews  { grid-area: sec; }
 .area-tech     { grid-area: tech; }
 .area-politics { grid-area: pol; }
+
+/* BCIX-Sparkline */
+.bcix-chart-wrap {
+  flex: 1 1 auto;
+  min-width: 80px;
+  height: 36px;
+  position: relative;
+}
+.bcix-chart-wrap canvas { position: absolute; inset: 0; }
 
 .panel {
   background: var(--panel);
@@ -410,6 +421,7 @@ body {
 .chip-cto { border-color: #2c4a6e; }
 .chip-cto .chip-tag { color: var(--accent); }
 .chip-bsky.chip-cto .chip-tag { color: #a78bfa; }
+.chip-dim { opacity: 0.45; }
 .chip-count { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 .empty-note { color: var(--text-dim); font-size: 13px; font-style: italic; }
