@@ -486,16 +486,26 @@ function render(data) {
     el('energy-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
   }
 
-  const chips = (data.lists.socialTrends || []).map((t) => {
+  const chipsHtml = (data.lists.socialTrends || []).map((t) => {
     const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';
     const prefix = t.source === 'Bluesky' ? '' : '#';
     const cls = [t.source === 'Bluesky' ? 'chip-bsky' : '', t.cto ? 'chip-cto' : 'chip-dim']
-      .join(' ')
-      .trim();
+      .join(' ').trim();
     return `<span class="chip ${cls}" title="${esc(t.source)}"><span class="chip-tag">${prefix}${esc(t.tag)}</span>${count}</span>`;
+  }).join('') || '<span class="empty-note">Keine Trend-Daten verfügbar</span>';
+
+  const trendChips = el('trend-chips');
+  trendChips.classList.remove('scrolling');
+  trendChips.innerHTML = `<div class="trend-track">${chipsHtml}</div>`;
+  requestAnimationFrame(() => {
+    const track = trendChips.querySelector('.trend-track');
+    if (!track || track.scrollWidth <= trendChips.clientWidth + 4) return;
+    track.innerHTML += track.innerHTML; // duplizieren für nahtlose Schleife
+    const dur = Math.round(track.scrollWidth / 2 / 35); // ~35 px/s = langsam
+    track.style.setProperty('--trend-duration', `${dur}s`);
+    track.style.transform = 'translateZ(0)';
+    trendChips.classList.add('scrolling');
   });
-  el('trend-chips').innerHTML =
-    chips.join('') || '<span class="empty-note">Keine Trend-Daten verfügbar</span>';
 
   // ── BCIX Internet Exchange ──────────────────────────────────
   const bcix = data.lists.bcix;

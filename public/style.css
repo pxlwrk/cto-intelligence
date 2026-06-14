@@ -401,10 +401,31 @@ body {
 }
 .trend-chips {
   flex: 1 1 auto;
-  display: flex;
-  gap: 10px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+/* Innerer Track: enthält alle Chips, wird bei Überlauf dupliziert und animiert */
+.trend-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
   white-space: nowrap;
+}
+
+.trend-chips.scrolling .trend-track {
+  animation: trend-scroll var(--trend-duration, 50s) linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+@keyframes trend-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 .chip {
   flex: 0 0 auto;
@@ -512,7 +533,7 @@ body {
   gap: 56px;
   white-space: nowrap;
   padding-left: 100%;
-  animation: ticker 90s linear infinite;
+  animation: ticker 160s linear infinite;
   font-size: 14.5px;
   will-change: transform;
   backface-visibility: hidden;
