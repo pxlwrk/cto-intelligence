@@ -13,7 +13,7 @@ const {
   fetchEnergy,
   fetchCloudflareRadar,
   fetchWeather,
-  fetchBcix,
+  fetchIxStatus,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -181,10 +181,10 @@ const SOURCES = [
     fetch: () => fetchTagesschau('ausland', 8),
   },
   {
-    id: 'bcix',
-    name: 'BCIX Berlin Internet Exchange',
-    ttl: 3 * MIN,
-    fetch: fetchBcix,
+    id: 'ixStatus',
+    name: 'Internet Exchange Status (DE-CIX & BCIX via PeeringDB)',
+    ttl: 5 * MIN,
+    fetch: fetchIxStatus,
   },
 ];
 
@@ -396,7 +396,7 @@ async function buildDashboard() {
       cloudflare: process.env.CLOUDFLARE_API_TOKEN
         ? get('cloudflare', { unavailable: true })
         : null,
-      bcix: get('bcix', null),
+      ixStatus: get('ixStatus', null),
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('chaosTrends'),

@@ -346,36 +346,34 @@ function renderVendorChart(vendors) {
   }
 }
 
-function renderBcixChart(points) {
-  const ctx = el('chart-bcix');
+function renderIxChart(decixCount, bcixCount) {
+  const ctx = el('chart-ix');
   const cfg = {
-    type: 'line',
+    type: 'bar',
     data: {
-      labels: points.map(() => ''),
+      labels: ['DE-CIX Frankfurt', 'BCIX Berlin'],
       datasets: [{
-        data: points,
-        borderColor: '#38bdf8',
-        backgroundColor: 'rgba(56,189,248,0.15)',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: true,
-        tension: 0.4,
+        data: [decixCount, bcixCount],
+        backgroundColor: ['#38bdf8', '#818cf8'],
+        borderRadius: 3,
+        barThickness: 12,
       }],
     },
     options: {
+      indexAxis: 'y',
       maintainAspectRatio: false,
       scales: {
-        x: { display: false },
-        y: { display: false, beginAtZero: false },
+        x: { display: false, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
       },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
     },
   };
-  if (charts.bcix) {
-    charts.bcix.data.datasets[0].data = points;
-    charts.bcix.update();
+  if (charts.ix) {
+    charts.ix.data.datasets[0].data = [decixCount, bcixCount];
+    charts.ix.update();
   } else {
-    charts.bcix = new Chart(ctx, cfg);
+    charts.ix = new Chart(ctx, cfg);
   }
 }
 
@@ -507,28 +505,44 @@ function render(data) {
     trendChips.classList.add('scrolling');
   });
 
-  // ── BCIX Internet Exchange ──────────────────────────────────
-  const bcix = data.lists.bcix;
+  // ── Internet Exchange Status (DE-CIX & BCIX) ───────────────
+  const ixStatus = data.lists.ixStatus;
   const SVC_DOTS2 = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
-  if (bcix && !bcix._unavailable) {
-    el('bcix-status').innerHTML =
-      `<span class="svc-dot ${SVC_DOTS2[bcix.indicator] || 'svc-unknown'}"></span>` +
-      `<span>${bcix.indicator === 'none' ? 'Betrieb normal' : bcix.indicator === 'minor' ? 'Störung' : bcix.indicator === 'major' ? 'Teilausfall' : 'Kritisch'}</span>`;
-    el('bcix-components').innerHTML = (bcix.components || [])
-      .map((c) => `<span class="svc" title="${esc(c.name)}"><span class="svc-dot ${SVC_DOTS2[c.indicator] || 'svc-unknown'}"></span>${esc(c.name)}</span>`)
-      .join('') || '<span class="empty-note">keine Komponentendaten</span>';
-    if (bcix.points?.length > 1) {
-      if (bcix.metricName) el('bcix-metric-label').textContent = bcix.metricName;
-      renderBcixChart(bcix.points);
+  const indicatorLabel = (ind) =>
+    ind === 'none' ? 'Betrieb normal' : ind === 'minor' ? 'Störung' : ind === 'major' ? 'Teilausfall' : ind === 'critical' ? 'Kritisch' : 'Unbekannt';
+  if (ixStatus) {
+    const decix = ixStatus.decix;
+    const bcix = ixStatus.bcix;
+    el('ix-decix').innerHTML = decix
+      ? `<span class="svc-dot svc-ok"></span>` +
+        (decix.netCount !== null ? `<span title="Mitglieds-ASNs (PeeringDB)"><span class="live-value">${fmtNum(decix.netCount)}</span> ASNs</span>` : '') +
+        (decix.city ? `<span class="item-meta">${esc(decix.city)}</span>` : '')
+      : '<span class="empty-note">nicht erreichbar</span>';
+    if (bcix) {
+      el('ix-bcix-status').innerHTML =
+        `<span class="svc-dot ${SVC_DOTS2[bcix.indicator] || 'svc-unknown'}"></span>` +
+        `<span>${indicatorLabel(bcix.indicator)}</span>` +
+        (bcix.netCount !== null ? `<span title="Mitglieds-ASNs"><span class="live-value">${fmtNum(bcix.netCount)}</span> ASNs</span>` : '');
+      el('ix-bcix-components').innerHTML = (bcix.components || [])
+        .map((c) => `<span class="svc" title="${esc(c.name)}"><span class="svc-dot ${SVC_DOTS2[c.indicator] || 'svc-unknown'}"></span>${esc(c.name)}</span>`)
+        .join('') || '<span class="empty-note">keine Komponentendaten</span>';
+      const decixN = decix?.netCount ?? 0;
+      const bcixN = bcix.netCount ?? 0;
+      if (decixN > 0 || bcixN > 0) {
+        renderIxChart(decixN, bcixN);
+      } else {
+        el('chart-ix').closest('.bcix-chart-wrap').classList.add('hidden');
+      }
     } else {
-      el('bcix-metric-label').classList.add('hidden');
-      el('chart-bcix').closest('.bcix-chart-wrap').classList.add('hidden');
+      el('ix-bcix-status').innerHTML = '<span class="empty-note">nicht erreichbar</span>';
+      el('ix-bcix-components').innerHTML = '';
+      el('chart-ix').closest('.bcix-chart-wrap').classList.add('hidden');
     }
   } else {
-    el('bcix-status').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
-    el('bcix-components').innerHTML = '';
-    el('bcix-metric-label').classList.add('hidden');
-    el('chart-bcix').closest('.bcix-chart-wrap').classList.add('hidden');
+    el('ix-decix').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
+    el('ix-bcix-status').innerHTML = '';
+    el('ix-bcix-components').innerHTML = '';
+    el('chart-ix').closest('.bcix-chart-wrap').classList.add('hidden');
   }
 
   const tickerItems = [

@@ -198,17 +198,25 @@ function buildDemoDashboard() {
         pollen: { max: 2, top: [{ type: 'Gräser', level: 2 }, { type: 'Roggen', level: 1 }] },
       },
       cloudflare: { outages24h: 9, outagesDe: 0, ddosTrendPct: 23 },
-      bcix: {
-        indicator: 'none',
-        components: [
-          { name: 'Core Switch Fabric', indicator: 'none', enabled: true },
-          { name: 'Route Server Primary', indicator: 'none', enabled: true },
-          { name: 'Route Server Secondary', indicator: 'none', enabled: true },
-          { name: 'Peering LAN', indicator: 'minor', enabled: true },
-        ],
-        points: [420, 435, 410, 460, 490, 510, 498, 520, 545, 530, 510, 490, 500, 515,
-                 530, 540, 555, 560, 548, 535, 520, 510, 498, 505],
-        metricName: 'Traffic (Gbps)',
+      ixStatus: {
+        decix: {
+          name: 'DE-CIX Frankfurt',
+          city: 'Frankfurt',
+          netCount: 1084,
+          updated: new Date().toISOString(),
+        },
+        bcix: {
+          name: 'BCIX Berlin',
+          city: 'Berlin',
+          netCount: 157,
+          indicator: 'none',
+          components: [
+            { name: 'Core Switch Fabric', indicator: 'none' },
+            { name: 'Route Server Primary', indicator: 'none' },
+            { name: 'Route Server Secondary', indicator: 'none' },
+            { name: 'Peering LAN', indicator: 'minor' },
+          ],
+        },
       },
       socialTrends: [
         { tag: 'ZeroDay', count: 4100, source: 'infosec.exchange', cto: true },

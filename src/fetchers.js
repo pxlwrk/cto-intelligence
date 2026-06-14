@@ -383,40 +383,57 @@ async function fetchWeather() {
 }
 
 /**
- * BCIX Berlin Internet Exchange – Status und optionale Traffic-Metrik.
- * Erwartet eine Cachet-v1-kompatible API unter status.bcix.net.
- * Status-Codes: 1 = Operational, 2 = Performance Issues,
- *               3 = Partial Outage, 4 = Major Outage.
+ * Internet Exchange Status: DE-CIX Frankfurt und BCIX Berlin.
+ *
+ * Quellen:
+ * · PeeringDB (public, kein Key): Mitglieds-ASN-Anzahl beider IXe
+ *   DE-CIX Frankfurt = PeeringDB-ID 31, BCIX Berlin = ID 87
+ * · BCIX Cachet v1 (status.bcix.net): Komponentenstatus;
+ *   erreichbar vom Ministeriums-/Pi-Netz, nicht von Cloud-IPs
+ *
+ * Cachet-Statuscodes: 1 = Operational, 2 = Performance Issues,
+ *                     3 = Partial Outage, 4 = Major Outage
  */
-async function fetchBcix() {
-  const INDICATOR = { 1: 'none', 2: 'minor', 3: 'major', 4: 'critical' };
-  const comp = await fetchJson('https://status.bcix.net/api/v1/components');
-  const rawComponents = comp.data || [];
-  const components = rawComponents.map((c) => ({
-    name: c.name,
-    indicator: INDICATOR[c.status] || 'unknown',
-    enabled: c.enabled !== false,
-  })).filter((c) => c.enabled);
+async function fetchIxStatus() {
+  const CACHET = { 1: 'none', 2: 'minor', 3: 'major', 4: 'critical' };
 
-  const worstNum = rawComponents.reduce((w, c) => Math.max(w, c.status || 1), 1);
+  const normPdb = (resp) => {
+    if (resp.status !== 'fulfilled') return null;
+    const d = (resp.value?.data || [])[0];
+    if (!d) return null;
+    return {
+      name: d.name || '',
+      city: d.city || '',
+      netCount: typeof d.net_count === 'number' ? d.net_count : null,
+      updated: d.updated || null,
+    };
+  };
 
-  // Optionale Sparkline-Daten aus der ersten Cachet-Metrik
-  let points = [];
-  let metricName = '';
-  try {
-    const mData = await fetchJson('https://status.bcix.net/api/v1/metrics');
-    const m = (mData.data || [])[0];
-    if (m?.id) {
-      metricName = m.name || '';
-      const pData = await fetchJson(
-        `https://status.bcix.net/api/v1/metric-points?metric_id=${m.id}` +
-        `&sort=id&order=desc&per_page=24`
-      );
-      points = (pData.data || []).map((p) => p.value).reverse();
-    }
-  } catch { /* Metrik-Daten optional */ }
+  const [pdbDecix, pdbBcix, cachetBcix] = await Promise.allSettled([
+    fetchJson('https://www.peeringdb.com/api/ix/31'),   // DE-CIX Frankfurt
+    fetchJson('https://www.peeringdb.com/api/ix/87'),   // BCIX Berlin
+    fetchJson('https://status.bcix.net/api/v1/components'),
+  ]);
 
-  return { indicator: INDICATOR[worstNum] || 'none', components, points, metricName };
+  let bcixIndicator = 'unknown';
+  let bcixComponents = [];
+  if (cachetBcix.status === 'fulfilled') {
+    const raw = cachetBcix.value?.data || [];
+    const worst = raw.reduce((w, c) => Math.max(w, c.status || 1), 1);
+    bcixIndicator = CACHET[worst] || 'none';
+    bcixComponents = raw
+      .filter((c) => c.enabled !== false)
+      .map((c) => ({ name: c.name, indicator: CACHET[c.status] || 'unknown' }));
+  }
+
+  return {
+    decix: normPdb(pdbDecix),
+    bcix: {
+      ...(normPdb(pdbBcix) || { name: 'BCIX Berlin', city: 'Berlin', netCount: null }),
+      indicator: bcixIndicator,
+      components: bcixComponents,
+    },
+  };
 }
 
 module.exports = {
@@ -432,5 +449,5 @@ module.exports = {
   fetchEnergy,
   fetchCloudflareRadar,
   fetchWeather,
-  fetchBcix,
+  fetchIxStatus,
 };
