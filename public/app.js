@@ -470,7 +470,7 @@ function render(data) {
     el('zdc-exploitrate').innerHTML =
       `<span><span class="live-value">${fmtNum1(zdc.exploitRatePct)}</span>&thinsp;%</span>` +
       (zdc.totalCvesPublished !== null ? `<span class="item-meta">${fmtNum(zdc.totalCvesPublished)} CVEs gesamt</span>` : '') +
-      (zdc.weaponizedExploits !== null ? `<span class="item-meta">${fmtNum(zdc.weaponizedExploits)} Exploits</span>` : '');
+      (zdc.ransomwareCves !== null ? `<span class="item-meta">${fmtNum(zdc.ransomwareCves)} mit Ransomware-Bezug</span>` : '');
   } else {
     el('zdc-tte').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
     el('zdc-zerorate').innerHTML = '';

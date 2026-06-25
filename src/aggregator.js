@@ -182,7 +182,7 @@ const SOURCES = [
   },
   {
     id: 'zeroDayClock',
-    name: 'Zero Day Clock (Time-to-Exploit-Kennzahlen)',
+    name: 'Time-to-Exploit-Kennzahlen (CISA KEV + CVE Project, eigene Berechnung)',
     ttl: 60 * MIN,
     fetch: fetchZeroDayClock,
   },

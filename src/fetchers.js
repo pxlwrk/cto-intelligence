@@ -97,6 +97,14 @@ async function fetchNvdRecent(days = 7) {
   return { total, severities, days, sampled: startIndex < total ? startIndex : total };
 }
 
+/** NVD CVE API 2.0: Gesamtzahl aller je veröffentlichten CVEs (ein schlanker Request). */
+async function fetchNvdTotalCount() {
+  const data = await fetchJson(
+    'https://services.nvd.nist.gov/rest/json/cves/2.0/?resultsPerPage=1&noRejected'
+  );
+  return data.totalResults || null;
+}
+
 /** Hacker News top stories with scores ("tech pulse") */
 async function fetchHackerNews(limit = 8) {
   const ids = await fetchJson('https://hacker-news.firebaseio.com/v0/topstories.json');
@@ -383,67 +391,117 @@ async function fetchWeather() {
 }
 
 /**
- * Zero Day Clock (zerodayclock.com): Forschungs-Kennzahlen zur Zeit zwischen
- * CVE-Veröffentlichung und erster bestätigter Ausnutzung ("Time-to-Exploit").
- * Keine öffentliche JSON-API dokumentiert; die Kennzahlen werden anhand der
- * auf der Startseite verwendeten Label-/Einheitstexte aus dem HTML gesucht.
- * Liefert ein Feld als null, wenn es im HTML nicht gefunden wird; schlägt
- * der Abgleich vollständig fehl, gilt die Quelle als nicht erreichbar.
+ * Time-to-Exploit-Kennzahlen (Methodik angelehnt an zerodayclock.com,
+ * aber selbst berechnet statt von dort abgegriffen): TTE = Tag der Aufnahme
+ * in den CISA-KEV-Katalog minus Tag der CVE-Veröffentlichung. Pro CVE wird
+ * das Veröffentlichungsdatum aus dem CVE-Project-Mirror (cvelistV5, GitHub)
+ * geladen, da die NVD-API ohne Key für ~1.500 Einzelabfragen zu strikt
+ * ratenbegrenzt ist (5 Anfragen/30s). Veröffentlichungsdaten ändern sich nach
+ * Publikation nie, daher werden erfolgreiche Treffer dauerhaft im Prozess
+ * zwischengespeichert; bei jedem Refresh werden nur neu hinzugekommene
+ * KEV-Einträge nachgeladen.
  */
-function findNumberNear(text, anchorRe) {
-  const m = anchorRe.exec(text);
+const cvePublishedCache = new Map(); // cveId -> ISO-Datum
+
+function cveRecordUrl(cveId) {
+  const m = /^CVE-(\d{4})-(\d+)$/.exec(cveId || '');
   if (!m) return null;
-  const WINDOW = 80;
-  const before = text.slice(Math.max(0, m.index - WINDOW), m.index);
-  const after = text.slice(m.index + m[0].length, m.index + m[0].length + WINDOW);
-  const numRe = /-?\d[\d,]*\.?\d*\+?%?/g;
-  const beforeNums = [...before.matchAll(numRe)].map((x) => x[0]);
-  const afterNums = [...after.matchAll(numRe)].map((x) => x[0]);
-  return beforeNums[beforeNums.length - 1] || afterNums[0] || null;
+  const [, year, seq] = m;
+  const bucket = `${Math.floor(Number(seq) / 1000)}xxx`;
+  return `https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/${year}/${bucket}/${cveId}.json`;
 }
 
-function parseEnglishNumber(raw) {
-  if (!raw) return null;
-  const n = parseFloat(raw.replace(/[%+]/g, '').replace(/,/g, ''));
-  return Number.isNaN(n) ? null : n;
+async function fetchCvePublishedDate(cveId) {
+  if (cvePublishedCache.has(cveId)) return cvePublishedCache.get(cveId);
+  const url = cveRecordUrl(cveId);
+  if (!url) return null;
+  try {
+    const data = await fetchJson(url);
+    const date = data?.cveMetadata?.datePublished || null;
+    if (date) cvePublishedCache.set(cveId, date);
+    return date;
+  } catch {
+    // CVE im Mirror (noch) nicht gefunden – beim nächsten Refresh erneut versuchen
+    return null;
+  }
 }
 
-const ZDC_ANCHORS = {
-  meanTteDays: /Mean\s*TTE\s*\(10%\s*trimmed,?\s*days\)/i,
-  medianTteDays: /Median\s*TTE\s*\(days\)/i,
-  weaponizedExploits: /Weaponized\s*Exploits\s*\(count\)/i,
-  zeroDayRatePct: /Zero-Day\s*Rate\s*\(%\s*of\s*exploited\)/i,
-  exploitedCves: /Exploited\s*CVEs\s*\(count\)/i,
-  exploitRatePct: /Exploit\s*Rate\s*\(%\s*of\s*all\s*CVEs\)/i,
-  totalCvesPublished: /Total\s*CVEs\s*Published\s*\(count\)/i,
-};
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+function median(nums) {
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+/** 10%-getrimmter Mittelwert; bei kleinen Kohorten (≤20) einfacher Mittelwert. */
+function trimmedMean(nums) {
+  if (!nums.length) return null;
+  if (nums.length <= 20) return nums.reduce((a, b) => a + b, 0) / nums.length;
+  const s = [...nums].sort((a, b) => a - b);
+  const cut = Math.floor(s.length * 0.1);
+  const trimmed = s.slice(cut, s.length - cut);
+  return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+}
+
+const round1 = (n) => (n === null || n === undefined ? null : Math.round(n * 10) / 10);
 
 async function fetchZeroDayClock() {
-  const res = await fetchWithTimeout('https://zerodayclock.com/');
-  const html = await res.text();
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ');
+  const [kev, totalCvesPublished] = await Promise.all([
+    fetchKev(),
+    fetchNvdTotalCount().catch(() => null),
+  ]);
 
-  const result = {};
-  for (const [key, anchor] of Object.entries(ZDC_ANCHORS)) {
-    result[key] = parseEnglishNumber(findNumberNear(text, anchor));
+  const cohort = kev.filter((v) => v.cveId && v.dateAdded);
+  const published = await mapWithConcurrency(cohort, 12, async (v) => ({
+    v,
+    date: await fetchCvePublishedDate(v.cveId),
+  }));
+
+  const ttes = [];
+  for (const { v, date } of published) {
+    if (!date) continue;
+    const pub = new Date(date);
+    if (pub.getUTCFullYear() < 2010) continue; // Qualitätsfilter: sehr alte/unsaubere Erstdaten
+    const pubDay = Date.UTC(pub.getUTCFullYear(), pub.getUTCMonth(), pub.getUTCDate());
+    const [ay, am, ad] = v.dateAdded.split('-').map(Number);
+    const addedDay = Date.UTC(ay, am - 1, ad);
+    const tte = Math.round((addedDay - pubDay) / 86400000);
+    if (tte < -180) continue; // Ausreißer/Datenfehler
+    ttes.push(tte);
   }
 
-  if (Object.values(result).every((v) => v === null)) {
-    throw new Error('Zero Day Clock: keine Kennzahlen im HTML gefunden');
-  }
-  return result;
+  if (!ttes.length) throw new Error('Time-to-Exploit: keine auswertbare CVE-Kohorte');
+
+  const exploitedCves = kev.length;
+  return {
+    medianTteDays: round1(median(ttes)),
+    meanTteDays: round1(trimmedMean(ttes)),
+    zeroDayRatePct: round1((ttes.filter((t) => t <= 0).length / ttes.length) * 100),
+    exploitedCves,
+    exploitRatePct: totalCvesPublished ? round1((exploitedCves / totalCvesPublished) * 100) : null,
+    totalCvesPublished,
+    ransomwareCves: kev.filter((v) => v.ransomware).length,
+    sampleSize: ttes.length,
+  };
 }
 
 module.exports = {
   fetchFeed,
   fetchKev,
   fetchNvdRecent,
+  fetchNvdTotalCount,
   fetchHackerNews,
   fetchTagesschau,
   fetchMastodonTrends,
