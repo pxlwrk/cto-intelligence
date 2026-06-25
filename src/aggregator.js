@@ -13,7 +13,7 @@ const {
   fetchEnergy,
   fetchCloudflareRadar,
   fetchWeather,
-  fetchIxStatus,
+  fetchZeroDayClock,
 } = require('./fetchers');
 
 const MIN = 60 * 1000;
@@ -181,10 +181,10 @@ const SOURCES = [
     fetch: () => fetchTagesschau('ausland', 8),
   },
   {
-    id: 'ixStatus',
-    name: 'Internet Exchange Status (DE-CIX & BCIX via PeeringDB)',
-    ttl: 5 * MIN,
-    fetch: fetchIxStatus,
+    id: 'zeroDayClock',
+    name: 'Zero Day Clock (Time-to-Exploit-Kennzahlen)',
+    ttl: 60 * MIN,
+    fetch: fetchZeroDayClock,
   },
 ];
 
@@ -232,18 +232,13 @@ function computeThreatLevel({ cveCritical7d, kev7d, ransomwareKev30d }) {
   return { level: 1, label: 'Grün – Normal', reason: 'Keine auffällige Häufung aktiver Ausnutzung' };
 }
 
-function buildAdvisoryTimeline(certBund, kev, days = 14) {
+function buildAdvisoryTimeline(kev, days = 14) {
   const buckets = [];
   for (let i = days - 1; i >= 0; i--) {
-    const day = daysAgo(i);
-    const key = day.toISOString().slice(0, 10);
-    buckets.push({ date: key, certBund: 0, kev: 0 });
+    const key = daysAgo(i).toISOString().slice(0, 10);
+    buckets.push({ date: key, kev: 0 });
   }
   const index = new Map(buckets.map((b) => [b.date, b]));
-  for (const item of certBund) {
-    const key = item.date ? new Date(item.date).toISOString().slice(0, 10) : null;
-    if (key && index.has(key)) index.get(key).certBund++;
-  }
   for (const v of kev) {
     if (v.dateAdded && index.has(v.dateAdded)) index.get(v.dateAdded).kev++;
   }
@@ -371,7 +366,7 @@ async function buildDashboard() {
     kpis,
     charts: {
       cveSeverity: nvd?.severities ?? null,
-      advisoryTimeline: buildAdvisoryTimeline(certBund, kev),
+      advisoryTimeline: buildAdvisoryTimeline(kev),
       kevTopVendors: topVendors(kev),
     },
     lists: {
@@ -396,7 +391,7 @@ async function buildDashboard() {
       cloudflare: process.env.CLOUDFLARE_API_TOKEN
         ? get('cloudflare', { unavailable: true })
         : null,
-      ixStatus: get('ixStatus', null),
+      zeroDayClock: get('zeroDayClock', null),
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('chaosTrends'),

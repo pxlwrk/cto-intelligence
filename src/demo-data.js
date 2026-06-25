@@ -101,7 +101,6 @@ function buildDemoDashboard() {
   for (let i = 13; i >= 0; i--) {
     advisoryTimeline.push({
       date: dateKey(i),
-      certBund: 3 + ((i * 7) % 9),
       kev: (i * 5) % 4,
     });
   }
@@ -198,25 +197,14 @@ function buildDemoDashboard() {
         pollen: { max: 2, top: [{ type: 'Gräser', level: 2 }, { type: 'Roggen', level: 1 }] },
       },
       cloudflare: { outages24h: 9, outagesDe: 0, ddosTrendPct: 23 },
-      ixStatus: {
-        decix: {
-          name: 'DE-CIX Frankfurt',
-          city: 'Frankfurt',
-          netCount: 1084,
-          updated: new Date().toISOString(),
-        },
-        bcix: {
-          name: 'BCIX Berlin',
-          city: 'Berlin',
-          netCount: 157,
-          indicator: 'none',
-          components: [
-            { name: 'Core Switch Fabric', indicator: 'none' },
-            { name: 'Route Server Primary', indicator: 'none' },
-            { name: 'Route Server Secondary', indicator: 'none' },
-            { name: 'Peering LAN', indicator: 'minor' },
-          ],
-        },
+      zeroDayClock: {
+        meanTteDays: 4.8,
+        medianTteDays: 0.9,
+        weaponizedExploits: 3540,
+        zeroDayRatePct: 68,
+        exploitedCves: 3540,
+        exploitRatePct: 1.5,
+        totalCvesPublished: 235851,
       },
       socialTrends: [
         { tag: 'ZeroDay', count: 4100, source: 'infosec.exchange', cto: true },

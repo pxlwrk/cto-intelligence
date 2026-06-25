@@ -133,8 +133,8 @@
     <section class="panel chart-panel area-timeline">
       <h2>
         <svg class="ph" aria-hidden="true"><use href="#i-bar-chart"/></svg>
-        Advisories &amp; aktive Ausnutzung
-        <span class="panel-sub">14 Tage · CERT-Bund / CISA</span>
+        Aktive Ausnutzung
+        <span class="panel-sub">14 Tage · CISA KEV</span>
       </h2>
       <div class="chart-wrap"><canvas id="chart-timeline"></canvas></div>
     </section>
@@ -148,25 +148,32 @@
       <div class="chart-wrap"><canvas id="chart-vendors"></canvas></div>
     </section>
 
-    <section class="panel live-row area-bcix" id="bcix-panel">
+    <section class="panel live-row area-zdc" id="zdc-panel">
       <div class="live-seg">
-        <span class="live-label">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-share2"/></svg>
-          DE-CIX Frankfurt
+        <span class="live-label" title="Quelle: zerodayclock.com">
+          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-zap"/></svg>
+          Time-to-Exploit
         </span>
-        <div class="live-content" id="ix-decix"></div>
+        <div class="live-content" id="zdc-tte"></div>
       </div>
       <div class="live-seg">
-        <span class="live-label">BCIX Berlin</span>
-        <div class="live-content" id="ix-bcix-status"></div>
+        <span class="live-label">Zero-Day-Rate</span>
+        <div class="live-content" id="zdc-zerorate"></div>
       </div>
       <div class="live-seg">
-        <span class="live-label">Komponenten</span>
-        <div class="live-content" id="ix-bcix-components"></div>
+        <span class="live-label">Exploit-Rate</span>
+        <div class="live-content" id="zdc-exploitrate"></div>
       </div>
       <div class="live-seg live-seg-grow">
-        <span class="live-label">ASN-Mitglieder</span>
-        <div class="bcix-chart-wrap"><canvas id="chart-ix"></canvas></div>
+        <span class="live-label" title="Median-TTE-Meilensteine, extrapoliert aus dem Trend 2018–2024 · zerodayclock.com/audit">Meilensteine Median-TTE</span>
+        <div class="live-content" id="zdc-milestones">
+          <span class="zdc-ms">Jahr <b>2021</b></span>
+          <span class="zdc-ms">Monat <b>2025</b></span>
+          <span class="zdc-ms">Woche <b>2026</b></span>
+          <span class="zdc-ms">Tag <b>2026</b></span>
+          <span class="zdc-ms proj">Std. <b>~2027</b></span>
+          <span class="zdc-ms proj">Min. <b>~2027</b></span>
+        </div>
       </div>
     </section>
 

@@ -383,57 +383,61 @@ async function fetchWeather() {
 }
 
 /**
- * Internet Exchange Status: DE-CIX Frankfurt und BCIX Berlin.
- *
- * Quellen:
- * · PeeringDB (public, kein Key): Mitglieds-ASN-Anzahl beider IXe
- *   DE-CIX Frankfurt = PeeringDB-ID 31, BCIX Berlin = ID 87
- * · BCIX Cachet v1 (status.bcix.net): Komponentenstatus;
- *   erreichbar vom Ministeriums-/Pi-Netz, nicht von Cloud-IPs
- *
- * Cachet-Statuscodes: 1 = Operational, 2 = Performance Issues,
- *                     3 = Partial Outage, 4 = Major Outage
+ * Zero Day Clock (zerodayclock.com): Forschungs-Kennzahlen zur Zeit zwischen
+ * CVE-Veröffentlichung und erster bestätigter Ausnutzung ("Time-to-Exploit").
+ * Keine öffentliche JSON-API dokumentiert; die Kennzahlen werden anhand der
+ * auf der Startseite verwendeten Label-/Einheitstexte aus dem HTML gesucht.
+ * Liefert ein Feld als null, wenn es im HTML nicht gefunden wird; schlägt
+ * der Abgleich vollständig fehl, gilt die Quelle als nicht erreichbar.
  */
-async function fetchIxStatus() {
-  const CACHET = { 1: 'none', 2: 'minor', 3: 'major', 4: 'critical' };
+function findNumberNear(text, anchorRe) {
+  const m = anchorRe.exec(text);
+  if (!m) return null;
+  const WINDOW = 80;
+  const before = text.slice(Math.max(0, m.index - WINDOW), m.index);
+  const after = text.slice(m.index + m[0].length, m.index + m[0].length + WINDOW);
+  const numRe = /-?\d[\d,]*\.?\d*\+?%?/g;
+  const beforeNums = [...before.matchAll(numRe)].map((x) => x[0]);
+  const afterNums = [...after.matchAll(numRe)].map((x) => x[0]);
+  return beforeNums[beforeNums.length - 1] || afterNums[0] || null;
+}
 
-  const normPdb = (resp) => {
-    if (resp.status !== 'fulfilled') return null;
-    const d = (resp.value?.data || [])[0];
-    if (!d) return null;
-    return {
-      name: d.name || '',
-      city: d.city || '',
-      netCount: typeof d.net_count === 'number' ? d.net_count : null,
-      updated: d.updated || null,
-    };
-  };
+function parseEnglishNumber(raw) {
+  if (!raw) return null;
+  const n = parseFloat(raw.replace(/[%+]/g, '').replace(/,/g, ''));
+  return Number.isNaN(n) ? null : n;
+}
 
-  const [pdbDecix, pdbBcix, cachetBcix] = await Promise.allSettled([
-    fetchJson('https://www.peeringdb.com/api/ix/31'),   // DE-CIX Frankfurt
-    fetchJson('https://www.peeringdb.com/api/ix/87'),   // BCIX Berlin
-    fetchJson('https://status.bcix.net/api/v1/components'),
-  ]);
+const ZDC_ANCHORS = {
+  meanTteDays: /Mean\s*TTE\s*\(10%\s*trimmed,?\s*days\)/i,
+  medianTteDays: /Median\s*TTE\s*\(days\)/i,
+  weaponizedExploits: /Weaponized\s*Exploits\s*\(count\)/i,
+  zeroDayRatePct: /Zero-Day\s*Rate\s*\(%\s*of\s*exploited\)/i,
+  exploitedCves: /Exploited\s*CVEs\s*\(count\)/i,
+  exploitRatePct: /Exploit\s*Rate\s*\(%\s*of\s*all\s*CVEs\)/i,
+  totalCvesPublished: /Total\s*CVEs\s*Published\s*\(count\)/i,
+};
 
-  let bcixIndicator = 'unknown';
-  let bcixComponents = [];
-  if (cachetBcix.status === 'fulfilled') {
-    const raw = cachetBcix.value?.data || [];
-    const worst = raw.reduce((w, c) => Math.max(w, c.status || 1), 1);
-    bcixIndicator = CACHET[worst] || 'none';
-    bcixComponents = raw
-      .filter((c) => c.enabled !== false)
-      .map((c) => ({ name: c.name, indicator: CACHET[c.status] || 'unknown' }));
+async function fetchZeroDayClock() {
+  const res = await fetchWithTimeout('https://zerodayclock.com/');
+  const html = await res.text();
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ');
+
+  const result = {};
+  for (const [key, anchor] of Object.entries(ZDC_ANCHORS)) {
+    result[key] = parseEnglishNumber(findNumberNear(text, anchor));
   }
 
-  return {
-    decix: normPdb(pdbDecix),
-    bcix: {
-      ...(normPdb(pdbBcix) || { name: 'BCIX Berlin', city: 'Berlin', netCount: null }),
-      indicator: bcixIndicator,
-      components: bcixComponents,
-    },
-  };
+  if (Object.values(result).every((v) => v === null)) {
+    throw new Error('Zero Day Clock: keine Kennzahlen im HTML gefunden');
+  }
+  return result;
 }
 
 module.exports = {
@@ -449,5 +453,5 @@ module.exports = {
   fetchEnergy,
   fetchCloudflareRadar,
   fetchWeather,
-  fetchIxStatus,
+  fetchZeroDayClock,
 };

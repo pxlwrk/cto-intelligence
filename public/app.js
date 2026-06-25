@@ -35,6 +35,10 @@ function fmtNum(n) {
   return n === null || n === undefined ? '–' : n.toLocaleString('de-DE');
 }
 
+function fmtNum1(n) {
+  return n === null || n === undefined ? '–' : n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+}
+
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -269,40 +273,20 @@ function renderTimelineChart(timeline) {
       labels,
       datasets: [
         {
-          label: 'CERT-Bund Advisories (linke Achse)',
-          data: (timeline || []).map((b) => b.certBund),
-          backgroundColor: '#38bdf8',
-          borderRadius: 3,
-          yAxisID: 'y',
-        },
-        {
-          label: 'KEV-Neuzugänge (rechte Achse)',
+          label: 'KEV-Neuzugänge',
           data: (timeline || []).map((b) => b.kev),
           backgroundColor: '#f97316',
           borderRadius: 3,
-          yAxisID: 'yKev',
         },
       ],
     },
     options: {
       maintainAspectRatio: false,
       scales: {
-        x: { grid: { display: false }, stacked: false },
-        // Getrennte Y-Achsen: Advisories (zweistellig/Tag) und KEV (einstellig)
-        // skalieren unabhängig, damit beide Reihen gut ablesbar sind.
-        y: {
-          beginAtZero: true,
-          position: 'left',
-          ticks: { precision: 0, color: '#38bdf8' },
-        },
-        yKev: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          ticks: { precision: 0, color: '#f97316' },
-        },
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 } },
       },
-      plugins: { legend: { position: 'top', align: 'end' } },
+      plugins: { legend: { display: false } },
     },
   };
   if (charts.timeline) {
@@ -343,37 +327,6 @@ function renderVendorChart(vendors) {
     charts.vendors.update();
   } else {
     charts.vendors = new Chart(ctx, cfg);
-  }
-}
-
-function renderIxChart(decixCount, bcixCount) {
-  const ctx = el('chart-ix');
-  const cfg = {
-    type: 'bar',
-    data: {
-      labels: ['DE-CIX Frankfurt', 'BCIX Berlin'],
-      datasets: [{
-        data: [decixCount, bcixCount],
-        backgroundColor: ['#38bdf8', '#818cf8'],
-        borderRadius: 3,
-        barThickness: 12,
-      }],
-    },
-    options: {
-      indexAxis: 'y',
-      maintainAspectRatio: false,
-      scales: {
-        x: { display: false, beginAtZero: true },
-        y: { grid: { display: false }, ticks: { font: { size: 10 } } },
-      },
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-    },
-  };
-  if (charts.ix) {
-    charts.ix.data.datasets[0].data = [decixCount, bcixCount];
-    charts.ix.update();
-  } else {
-    charts.ix = new Chart(ctx, cfg);
   }
 }
 
@@ -505,44 +458,23 @@ function render(data) {
     trendChips.classList.add('scrolling');
   });
 
-  // ── Internet Exchange Status (DE-CIX & BCIX) ───────────────
-  const ixStatus = data.lists.ixStatus;
-  const SVC_DOTS2 = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
-  const indicatorLabel = (ind) =>
-    ind === 'none' ? 'Betrieb normal' : ind === 'minor' ? 'Störung' : ind === 'major' ? 'Teilausfall' : ind === 'critical' ? 'Kritisch' : 'Unbekannt';
-  if (ixStatus) {
-    const decix = ixStatus.decix;
-    const bcix = ixStatus.bcix;
-    el('ix-decix').innerHTML = decix
-      ? `<span class="svc-dot svc-ok"></span>` +
-        (decix.netCount !== null ? `<span title="Mitglieds-ASNs (PeeringDB)"><span class="live-value">${fmtNum(decix.netCount)}</span> ASNs</span>` : '') +
-        (decix.city ? `<span class="item-meta">${esc(decix.city)}</span>` : '')
-      : '<span class="empty-note">nicht erreichbar</span>';
-    if (bcix) {
-      el('ix-bcix-status').innerHTML =
-        `<span class="svc-dot ${SVC_DOTS2[bcix.indicator] || 'svc-unknown'}"></span>` +
-        `<span>${indicatorLabel(bcix.indicator)}</span>` +
-        (bcix.netCount !== null ? `<span title="Mitglieds-ASNs"><span class="live-value">${fmtNum(bcix.netCount)}</span> ASNs</span>` : '');
-      el('ix-bcix-components').innerHTML = (bcix.components || [])
-        .map((c) => `<span class="svc" title="${esc(c.name)}"><span class="svc-dot ${SVC_DOTS2[c.indicator] || 'svc-unknown'}"></span>${esc(c.name)}</span>`)
-        .join('') || '<span class="empty-note">keine Komponentendaten</span>';
-      const decixN = decix?.netCount ?? 0;
-      const bcixN = bcix.netCount ?? 0;
-      if (decixN > 0 || bcixN > 0) {
-        renderIxChart(decixN, bcixN);
-      } else {
-        el('chart-ix').closest('.bcix-chart-wrap').classList.add('hidden');
-      }
-    } else {
-      el('ix-bcix-status').innerHTML = '<span class="empty-note">nicht erreichbar</span>';
-      el('ix-bcix-components').innerHTML = '';
-      el('chart-ix').closest('.bcix-chart-wrap').classList.add('hidden');
-    }
+  // ── Zero Day Clock (Time-to-Exploit-Kennzahlen) ────────────
+  const zdc = data.lists.zeroDayClock;
+  if (zdc) {
+    el('zdc-tte').innerHTML =
+      `<span title="Median"><span class="live-value">${fmtNum1(zdc.medianTteDays)}</span> Tage Median</span>` +
+      `<span title="10%-getrimmter Mittelwert"><span class="live-value">${fmtNum1(zdc.meanTteDays)}</span> Tage Ø</span>`;
+    el('zdc-zerorate').innerHTML =
+      `<span><span class="live-value">${fmtNum1(zdc.zeroDayRatePct)}</span>&thinsp;%</span>` +
+      (zdc.exploitedCves !== null ? `<span class="item-meta">${fmtNum(zdc.exploitedCves)} CVEs</span>` : '');
+    el('zdc-exploitrate').innerHTML =
+      `<span><span class="live-value">${fmtNum1(zdc.exploitRatePct)}</span>&thinsp;%</span>` +
+      (zdc.totalCvesPublished !== null ? `<span class="item-meta">${fmtNum(zdc.totalCvesPublished)} CVEs gesamt</span>` : '') +
+      (zdc.weaponizedExploits !== null ? `<span class="item-meta">${fmtNum(zdc.weaponizedExploits)} Exploits</span>` : '');
   } else {
-    el('ix-decix').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
-    el('ix-bcix-status').innerHTML = '';
-    el('ix-bcix-components').innerHTML = '';
-    el('chart-ix').closest('.bcix-chart-wrap').classList.add('hidden');
+    el('zdc-tte').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
+    el('zdc-zerorate').innerHTML = '';
+    el('zdc-exploitrate').innerHTML = '';
   }
 
   const tickerItems = [
