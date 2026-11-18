@@ -3,21 +3,6 @@
 const REFRESH_MS = 5 * 60 * 1000; // Daten alle 5 Minuten
 const RELOAD_MS = 6 * 60 * 60 * 1000; // Seite alle 6 h komplett neu laden
 
-const SEV_COLORS = {
-  CRITICAL: '#ef4444',
-  HIGH: '#f97316',
-  MEDIUM: '#eab308',
-  LOW: '#22c55e',
-  NONE: '#64748b',
-};
-const SEV_LABELS = {
-  CRITICAL: 'Kritisch',
-  HIGH: 'Hoch',
-  MEDIUM: 'Mittel',
-  LOW: 'Niedrig',
-  NONE: 'o. Bew.',
-};
-
 Chart.defaults.color = '#8b9bb4';
 Chart.defaults.borderColor = '#1f2a44';
 Chart.defaults.font.family = "'Inter', 'Segoe UI', system-ui, sans-serif";
@@ -145,15 +130,11 @@ function renderWeather(w) {
     `<div class="wd-item"${title ? ` title="${esc(title)}"` : ''}><span class="wd-label">${l}</span><span class="wd-value">${v}</span></div>`;
   el('weather-details').innerHTML =
     item('Gefühlt', deg(w.feels)) +
-    item('Min/Max', `${deg(w.tmin)}/${deg(w.tmax)}`) +
     item('Wind', `${Math.round(w.windKmh ?? 0)} km/h ${windCompass(w.windDir)}`) +
-    item('Böen', `${Math.round(w.gustKmh ?? 0)} km/h`) +
-    item('Feuchte', `${Math.round(w.humidity ?? 0)} %`) +
-    item('Druck', `${Math.round(w.pressure ?? 0)} hPa`) +
     item('Regen', `${(w.precip ?? 0).toLocaleString('de-DE')} mm/h`) +
     item('UV-Index', w.uv ?? '–') +
     item('Pollen', pollen, pollenTitle) +
-    item('Sonne', `${hhmm(w.sunrise)}–${hhmm(w.sunset)}`);
+    item('Sonne', `${hhmm(w.sunrise)}-${hhmm(w.sunset)}`);
 }
 
 /* Bevölkerungsschutz-Meldungen rollieren im Live-Segment durch */
@@ -163,6 +144,10 @@ let civilTimer = null;
 
 function showCivilItem() {
   const target = el('civil-status');
+  if (civilItems === null) {
+    target.innerHTML = '<span class="empty-note">Bevölkerungsschutz: Quelle derzeit nicht erreichbar</span>';
+    return;
+  }
   if (civilItems.length === 0) {
     target.innerHTML = '<span class="svc-dot svc-ok"></span><span>keine aktiven Meldungen</span>';
     return;
@@ -181,11 +166,11 @@ function showCivilItem() {
 }
 
 function startCivilRotation(items) {
-  civilItems = items || [];
+  civilItems = items === null || items === undefined ? null : items;
   civilIdx = 0;
   clearInterval(civilTimer);
   showCivilItem();
-  if (civilItems.length > 1) civilTimer = setInterval(showCivilItem, 7000);
+  if (civilItems && civilItems.length > 1) civilTimer = setInterval(showCivilItem, 7000);
 }
 
 function meta(parts) {
@@ -231,52 +216,67 @@ function esc(s) {
 
 /* ── Diagramme ─────────────────────────────────────────────── */
 
-function renderSeverityChart(severities) {
-  const ctx = el('chart-severity');
-  const keys = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'];
-  const data = severities ? keys.map((k) => severities[k] || 0) : [];
-  const cfg = {
-    type: 'doughnut',
-    data: {
-      labels: keys.map((k) => SEV_LABELS[k]),
-      datasets: [
-        {
-          data,
-          backgroundColor: keys.map((k) => SEV_COLORS[k]),
-          borderColor: '#121a2e',
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      maintainAspectRatio: false,
-      cutout: '62%',
-      plugins: { legend: { position: 'right' } },
-    },
-  };
-  if (charts.severity) {
-    charts.severity.data = cfg.data;
-    charts.severity.update();
+const COLORS = {
+  accent: '#38bdf8',
+  critical: '#ef4444',
+  high: '#f97316',
+  medium: '#eab308',
+  low: '#22c55e',
+  violet: '#a78bfa',
+  panel: '#121a2e',
+  text: '#e6ecf5',
+};
+
+/** Diagramm anlegen oder mit neuen Daten aktualisieren (Instanz bleibt bestehen). */
+function upsertChart(key, canvasId, cfg) {
+  if (charts[key]) {
+    charts[key].data = cfg.data;
+    charts[key].options = cfg.options;
+    charts[key].update();
   } else {
-    charts.severity = new Chart(ctx, cfg);
+    charts[key] = new Chart(el(canvasId), cfg);
   }
 }
 
-function renderTimelineChart(timeline) {
-  const ctx = el('chart-timeline');
-  const labels = (timeline || []).map((b) =>
-    new Date(b.date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
-  );
-  const cfg = {
+/** Platzhaltertext einblenden, wenn ein Diagramm keine Daten hat. */
+function setEmpty(id, isEmpty) {
+  el(id).classList.toggle('hidden', !isEmpty);
+}
+
+/** Kalenderwoche nach ISO 8601 für ein Datum YYYY-MM-DD */
+function isoWeek(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+}
+
+const weekLabel = (dateStr) => `KW ${isoWeek(dateStr)}`;
+
+/** Enddatum (TT.MM.) eines 7-Tage-Zeitraums, der am Datum beginnt */
+function endLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + 7);
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+function renderCveTrendChart(weekly) {
+  const has = Array.isArray(weekly) && weekly.length > 0;
+  setEmpty('empty-cvetrend', !has);
+  if (!has) return;
+  const last = weekly.length - 1;
+  upsertChart('cvetrend', 'chart-cvetrend', {
     type: 'bar',
     data: {
-      labels,
+      labels: weekly.map((w, i) => (i === last ? 'aktuell' : `bis ${endLabel(w.weekStart)}`)),
       datasets: [
         {
-          label: 'KEV-Neuzugänge',
-          data: (timeline || []).map((b) => b.kev),
-          backgroundColor: '#f97316',
-          borderRadius: 3,
+          label: 'Kritische Schwachstellen',
+          data: weekly.map((w) => w.critical),
+          backgroundColor: weekly.map((_, i) => (i === last ? COLORS.critical : '#7f2a2a')),
+          borderRadius: 4,
+          maxBarThickness: 64,
         },
       ],
     },
@@ -284,30 +284,137 @@ function renderTimelineChart(timeline) {
       maintainAspectRatio: false,
       scales: {
         x: { grid: { display: false } },
-        y: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Anzahl' } },
       },
       plugins: { legend: { display: false } },
     },
-  };
-  if (charts.timeline) {
-    charts.timeline.data = cfg.data;
-    charts.timeline.update();
+  });
+}
+
+function renderKevWeeklyChart(weekly) {
+  const has = Array.isArray(weekly) && weekly.length > 0;
+  setEmpty('empty-kevweek', !has);
+  if (!has) return;
+  const top = Math.max(...weekly.map((w) => Math.max(w.kev, w.avg4))) + 1;
+  upsertChart('kevweek', 'chart-kevweek', {
+    type: 'bar',
+    data: {
+      labels: weekly.map((w) => weekLabel(w.weekStart)),
+      datasets: [
+        {
+          type: 'line',
+          label: 'Durchschnitt 4 Wochen',
+          data: weekly.map((w) => w.avg4),
+          yAxisID: 'y2',
+          borderColor: COLORS.text,
+          borderWidth: 2,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          tension: 0.3,
+          order: 0,
+        },
+        {
+          label: 'Ohne Ransomware-Bezug',
+          data: weekly.map((w) => w.kev - w.ransomware),
+          backgroundColor: COLORS.high,
+          stack: 'kev',
+          borderRadius: 2,
+          order: 1,
+        },
+        {
+          label: 'Mit Ransomware-Bezug',
+          data: weekly.map((w) => w.ransomware),
+          backgroundColor: COLORS.critical,
+          stack: 'kev',
+          borderRadius: 2,
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
+        y: { stacked: true, beginAtZero: true, max: top, ticks: { precision: 0 } },
+        y2: { display: false, beginAtZero: true, max: top },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}
+
+function renderTteChart(zdc) {
+  const years = zdc?.tteByYear || [];
+  const has = years.length >= 2;
+  setEmpty('empty-tte', !has);
+  const foot = el('tte-foot');
+  if (zdc) {
+    foot.innerHTML =
+      `<span>Aktuell: <b>${fmtNum1(zdc.medianTteDays)}</b> Tage (Median)</span>` +
+      `<span><b>${fmtNum1(zdc.zeroDayRatePct)}&thinsp;%</b> am Tag der Veröffentlichung ausgenutzt</span>`;
   } else {
-    charts.timeline = new Chart(ctx, cfg);
+    foot.innerHTML = '';
   }
+  if (!has) return;
+  upsertChart('tte', 'chart-tte', {
+    type: 'line',
+    data: {
+      labels: years.map((y) => String(y.year)),
+      datasets: [
+        {
+          label: 'Median in Tagen',
+          data: years.map((y) => y.medianDays),
+          borderColor: COLORS.medium,
+          backgroundColor: 'rgba(234,179,8,0.15)',
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 4,
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Anteil sofort ausgenutzt in %',
+          data: years.map((y) => y.zeroDayRatePct),
+          borderColor: COLORS.critical,
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0.3,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Tage', color: COLORS.medium }, ticks: { color: COLORS.medium } },
+        y1: {
+          beginAtZero: true,
+          max: 100,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: '% sofort', color: COLORS.critical },
+          ticks: { color: COLORS.critical },
+        },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
 }
 
 function renderVendorChart(vendors) {
-  const ctx = el('chart-vendors');
-  const cfg = {
+  const has = Array.isArray(vendors) && vendors.length > 0;
+  setEmpty('empty-vendors', !has);
+  if (!has) return;
+  upsertChart('vendors', 'chart-vendors', {
     type: 'bar',
     data: {
-      labels: (vendors || []).map((v) => v.vendor),
+      labels: vendors.map((v) => v.vendor),
       datasets: [
         {
           label: 'Aktiv ausgenutzte Schwachstellen',
-          data: (vendors || []).map((v) => v.count),
-          backgroundColor: '#ef4444',
+          data: vendors.map((v) => v.count),
+          backgroundColor: COLORS.critical,
           borderRadius: 3,
         },
       ],
@@ -321,13 +428,128 @@ function renderVendorChart(vendors) {
       },
       plugins: { legend: { display: false } },
     },
-  };
-  if (charts.vendors) {
-    charts.vendors.data = cfg.data;
-    charts.vendors.update();
-  } else {
-    charts.vendors = new Chart(ctx, cfg);
+  });
+}
+
+function renderRegulationChart(topics) {
+  const has = Array.isArray(topics) && topics.length > 0;
+  setEmpty('empty-reg', !has);
+  if (!has) return;
+  upsertChart('reg', 'chart-reg', {
+    type: 'bar',
+    data: {
+      labels: topics.map((t) => t.topic),
+      datasets: [
+        {
+          label: 'Meldungen',
+          data: topics.map((t) => t.count),
+          backgroundColor: COLORS.accent,
+          borderRadius: 3,
+          barThickness: 14,
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      maintainAspectRatio: false,
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { grid: { display: false } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}
+
+function renderEnergyChart(energy) {
+  const hist = energy?.history || [];
+  const has = hist.length >= 2;
+  setEmpty('empty-energy', !has);
+  if (!has) return;
+  upsertChart('energy', 'chart-energy', {
+    type: 'line',
+    data: {
+      labels: hist.map((p) =>
+        new Date(p.t).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      ),
+      datasets: [
+        {
+          label: 'Anteil erneuerbar in %',
+          data: hist.map((p) => p.v),
+          borderColor: COLORS.low,
+          backgroundColor: 'rgba(34,197,94,0.15)',
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 4, maxRotation: 0, font: { size: 10 } } },
+        y: { min: 0, max: 100, ticks: { stepSize: 50, font: { size: 10 } } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}
+
+function renderDdosChart(cf) {
+  const series = cf && !cf.unavailable ? cf.ddosSeries : null;
+  const has = Array.isArray(series) && series.length >= 2;
+  setEmpty('empty-ddos', !has);
+  if (!has) return;
+  upsertChart('ddos', 'chart-ddos', {
+    type: 'line',
+    data: {
+      labels: series.map((_, i) => (i === series.length - 1 ? 'heute' : `-${series.length - 1 - i} T`)),
+      datasets: [
+        {
+          label: 'Angriffsvolumen (relativ)',
+          data: series,
+          borderColor: COLORS.high,
+          backgroundColor: 'rgba(249,115,22,0.15)',
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 2,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 0, font: { size: 10 } } },
+        y: { beginAtZero: true, ticks: { maxTicksLimit: 3, font: { size: 10 } } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}
+
+/* ── Kennzahlen und Veränderung zur Vorwoche ──────────────── */
+
+/**
+ * Pfeil und Veränderung zur Vorperiode. Bei Risikokennzahlen ist ein
+ * Anstieg ungünstig (rot/orange), ein Rückgang günstig (grün).
+ */
+function setDelta(id, now, prev, unit) {
+  const target = el(id);
+  target.className = 'delta';
+  if (now === null || now === undefined || prev === null || prev === undefined) {
+    target.textContent = '';
+    return;
   }
+  const diff = now - prev;
+  if (diff === 0) {
+    target.textContent = `→ unverändert (${unit})`;
+    return;
+  }
+  target.classList.add(diff > 0 ? 'worse' : 'better');
+  const pct = prev > 0 ? ` (${diff > 0 ? '+' : ''}${Math.round((diff / prev) * 100)} %)` : '';
+  target.textContent = `${diff > 0 ? '▲' : '▼'} ${diff > 0 ? '+' : ''}${diff.toLocaleString('de-DE')} ggü. ${unit}${pct}`;
 }
 
 /* ── Rendern ───────────────────────────────────────────────── */
@@ -340,50 +562,96 @@ function render(data) {
   el('threat-value').textContent = data.threatLevel.label;
   tb.title = data.threatLevel.reason;
 
+  // Kennzahlen
   el('kpi-cve-critical').textContent = fmtNum(data.kpis.cveCritical7d);
-  el('kpi-cve-total').textContent = fmtNum(data.kpis.cveTotal7d);
   el('kpi-kev7').textContent = fmtNum(data.kpis.kev7d);
-  el('kpi-kev30').textContent = fmtNum(data.kpis.kev30d);
   el('kpi-ransom').textContent = fmtNum(data.kpis.ransomwareKev30d);
-  el('kpi-certbund').textContent = fmtNum(data.kpis.certBund7d);
-  el('kpi-bsi').textContent = fmtNum(data.kpis.bsiCsw7d);
+  const prev = data.kpiPrev || {};
+  setDelta('delta-cve-critical', data.kpis.cveCritical7d, prev.cveCritical7d, 'Vorwoche');
+  setDelta('delta-kev7', data.kpis.kev7d, prev.kev7d, 'Vorwoche');
+  setDelta('delta-ransom', data.kpis.ransomwareKev30d, prev.ransomwareKev30d, 'Vormonat');
 
-  renderSeverityChart(data.charts.cveSeverity);
-  renderTimelineChart(data.charts.advisoryTimeline);
+  const zdc = data.lists.zeroDayClock;
+  el('kpi-tte').textContent = zdc ? fmtNum1(zdc.medianTteDays) : '–';
+  const years = zdc?.tteByYear || [];
+  const deltaTte = el('delta-tte');
+  deltaTte.className = 'delta';
+  if (years.length >= 2) {
+    const first = years[0];
+    const last = years[years.length - 1];
+    deltaTte.classList.add(last.medianDays < first.medianDays ? 'worse' : 'better');
+    deltaTte.textContent = `${last.medianDays < first.medianDays ? '▼' : '▲'} von ${fmtNum1(first.medianDays)} Tagen (${first.year})`;
+  } else {
+    deltaTte.textContent = '';
+  }
+
+  const svcSummary = data.lists.serviceSummary;
+  const ops = el('kpi-ops');
+  if (svcSummary && svcSummary.known > 0) {
+    ops.textContent = `${svcSummary.disrupted}/${svcSummary.known}`;
+    ops.parentElement.classList.toggle('has-issue', svcSummary.disrupted > 0);
+    el('kpi-ops-sub').textContent = 'beobachtete Cloud- und KI-Dienste';
+    const d = el('delta-ops');
+    d.className = `delta ${svcSummary.disrupted > 0 ? 'worse' : 'better'}`;
+    d.textContent = svcSummary.disrupted > 0 ? svcSummary.names.join(', ') : 'alle Dienste normal';
+  } else {
+    ops.textContent = '–';
+    el('delta-ops').textContent = '';
+  }
+
+  // Management-Zusammenfassung
+  const summary = data.summary;
+  el('summary-panel').className = `panel summary-panel area-summary level-${data.threatLevel.level}`;
+  if (summary) {
+    el('summary-headline').textContent = summary.headline;
+    el('summary-list').innerHTML = summary.bullets.map((b) => `<li>${esc(b)}</li>`).join('');
+    el('summary-action').textContent = summary.action;
+  }
+
+  // Diagramme
+  renderCveTrendChart(data.charts.cveWeeklyCritical);
+  renderKevWeeklyChart(data.charts.kevWeekly);
+  renderTteChart(zdc);
   renderVendorChart(data.charts.kevTopVendors);
+  renderRegulationChart(data.charts.regulationTopics);
 
-  renderList('list-certbund', data.lists.certBund, (it) => {
+  // Regulierung und Fristen
+  renderList('list-reg', data.lists.regulation, (it) =>
+    `<div class="nitem"><div class="item-body"><span class="topic-tag">${esc(it.topic)}</span><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></div>`
+  );
+  renderList('list-deadlines', data.lists.deadlines, (d) => {
+    const months = d.daysLeft >= 120 ? Math.round(d.daysLeft / 30.4) : null;
+    const big = months !== null ? months : d.daysLeft;
+    const unit = months !== null ? 'Monate' : 'Tage';
+    const date = new Date(d.date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return `<div class="nitem deadline"><div class="deadline-days${d.daysLeft <= 90 ? ' soon' : ''}">${big}<small>${unit}</small></div><div class="deadline-text">${esc(d.title)}<span class="item-meta">${date} · ${esc(d.note)}</span></div></div>`;
+  });
+
+  // Detailmeldungen
+  const certList = data.lists.certBund;
+  el('certbund-sub').textContent = data.kpis.certBund7d !== null ? `${fmtNum(data.kpis.certBund7d)} in 7 Tagen` : '';
+  renderList('list-certbund', certList, (it) => {
     const { status, severity, unpatched, text } = parseCertTitle(it.title);
     const dot = `<span class="dot ${severity ? `dot-${severity}` : ''}${unpatched ? ' unpatched' : ''}" title="${[severity, unpatched ? 'ungepatcht' : ''].filter(Boolean).join(', ')}"></span>`;
     return `<div class="nitem ${status === 'update' ? 'item-update' : 'item-new'}">${dot}<div class="item-body"><span class="item-title">${esc(text)}</span>${meta([fmtTime(it.date)])}</div></div>`;
   });
 
-  renderList('list-secnews', data.lists.securityNews, (it) =>
-    `<div class="nitem"><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></div>`
-  );
-
   const byDate = (a, b) => new Date(b.date || 0) - new Date(a.date || 0);
-  const tech = [
+  const news = [
+    ...(data.lists.securityNews || []).slice(0, 8),
     ...(data.lists.aiNews || []).slice(0, 4).map((it) => ({ ...it, ki: true })),
-    ...(data.lists.techNews || []).slice(0, 6),
+    ...(data.lists.techNews || []).slice(0, 5),
   ].sort(byDate);
-  renderList('list-tech', tech, (it) =>
+  renderList('list-news', news, (it) =>
     `<div class="nitem">${it.ki ? '<span class="dot dot-ki" title="KI"></span>' : ''}<div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([esc(it.source), fmtTime(it.date)])}</div></div>`
   );
 
-  const politics = [
-    ...(data.lists.germany || []).slice(0, 5).map((it) => ({ ...it, region: 'DE' })),
-    ...(data.lists.world || []).slice(0, 5).map((it) => ({ ...it, region: 'Welt' })),
-  ].sort(byDate);
-  renderList('list-politics', politics, (it) =>
-    `<div class="nitem"><div class="item-body"><span class="item-title">${esc(it.title)}</span>${meta([it.region, fmtTime(it.date)])}</div></div>`
-  );
-
+  // Verfügbarkeit und Betrieb
   const SVC_DOTS = { none: 'svc-ok', minor: 'svc-minor', major: 'svc-major', critical: 'svc-critical' };
   el('svc-status').innerHTML = (data.lists.serviceStatus || [])
     .map(
       (s) =>
-        `<span class="svc" title="${esc(s.description)}"><span class="svc-dot ${SVC_DOTS[s.indicator] || 'svc-unknown'}"></span>${esc(s.name)}</span>`
+        `<span class="svc-card${s.indicator !== 'none' && s.indicator !== 'unknown' ? ' bad' : ''}" title="${esc(s.description)}"><span class="svc-dot ${SVC_DOTS[s.indicator] || 'svc-unknown'}"></span>${esc(s.name)}</span>`
     )
     .join('') || '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
 
@@ -393,11 +661,11 @@ function render(data) {
     const icons = [...new Set((dwd.events || []).map(dwdIcon))].join('');
     el('dwd-status').innerHTML =
       `<span class="svc-dot ${DWD_DOTS[dwd.worst] || 'svc-minor'}"></span>` +
-      `<span><span class="live-value">${fmtNum(dwd.total)}</span> aktiv</span>` +
+      `<span>Wetterwarnungen: <span class="live-value">${fmtNum(dwd.total)}</span> aktiv</span>` +
       (dwd.severe > 0 ? `<span><span class="live-value">${fmtNum(dwd.severe)}</span> schwer</span>` : '') +
       (icons ? `<span class="dwd-icons" title="${esc((dwd.events || []).join('\n'))}">${icons}</span>` : '');
   } else if (dwd) {
-    el('dwd-status').innerHTML = '<span class="svc-dot svc-ok"></span><span>keine Warnungen</span>';
+    el('dwd-status').innerHTML = '<span class="svc-dot svc-ok"></span><span>keine Wetterwarnungen</span>';
   } else {
     el('dwd-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
   }
@@ -407,36 +675,39 @@ function render(data) {
 
   const cf = data.lists.cloudflare;
   el('cloudflare-seg').classList.toggle('hidden', cf === null || cf === undefined);
+  renderDdosChart(cf);
   if (cf && !cf.unavailable) {
     const dot = cf.outagesDe > 0 ? 'svc-critical' : cf.outages24h >= 15 ? 'svc-minor' : 'svc-ok';
     const ddos =
       cf.ddosTrendPct !== null && cf.ddosTrendPct !== undefined
-        ? `<span title="Layer-7-DDoS-Volumen gegenüber 7-Tage-Schnitt">DDoS <span class="live-value">${cf.ddosTrendPct > 0 ? '+' : ''}${cf.ddosTrendPct}&thinsp;%</span></span>`
+        ? `<span title="Angriffsvolumen gegenüber 7-Tage-Schnitt">heute <b class="live-value">${cf.ddosTrendPct > 0 ? '+' : ''}${cf.ddosTrendPct}&thinsp;%</b></span>`
         : '';
     el('cloudflare-status').innerHTML =
       `<span class="svc-dot ${dot}"></span>` +
-      `<span title="Gemeldete Internet-Ausfälle, letzte 24 h"><span class="live-value">${fmtNum(cf.outages24h)}</span> Ausfälle</span>` +
-      `<span>DE <span class="live-value">${fmtNum(cf.outagesDe)}</span></span>` +
+      `<span title="Gemeldete Internet-Ausfälle, letzte 24 h"><b class="live-value">${fmtNum(cf.outages24h)}</b> Ausfälle weltweit</span>` +
+      `<span>DE <b class="live-value">${fmtNum(cf.outagesDe)}</b></span>` +
       ddos;
   } else if (cf) {
     el('cloudflare-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
   }
 
   const energy = data.lists.energy;
+  renderEnergyChart(energy);
   if (energy && energy.renShare !== null) {
     const AMPEL = { 0: 'svc-major', 1: 'svc-minor', 2: 'svc-ok', 3: 'svc-ok' };
     const load =
       energy.loadGw !== null && energy.loadGw !== undefined
-        ? `<span title="Aktuelle Netzlast">Last <span class="live-value">${energy.loadGw.toLocaleString('de-DE', { maximumFractionDigits: 1 })}</span> GW</span>`
+        ? `<span title="Aktuelle Netzlast">Last <b class="live-value">${energy.loadGw.toLocaleString('de-DE', { maximumFractionDigits: 1 })}</b> GW</span>`
         : '';
     el('energy-status').innerHTML =
-      `<span class="svc-dot ${AMPEL[energy.signal] ?? 'svc-unknown'}" title="Strom-Ampel (EE-Anteil)"></span>` +
-      `<span title="Anteil erneuerbarer Energien">EE <span class="live-value">${Math.round(energy.renShare)}&thinsp;%</span></span>` +
+      `<span class="svc-dot ${AMPEL[energy.signal] ?? 'svc-unknown'}" title="Strom-Ampel"></span>` +
+      `<span>jetzt <b class="live-value">${Math.round(energy.renShare)}&thinsp;%</b></span>` +
       load;
   } else {
     el('energy-status').innerHTML = '<span class="empty-note">Quelle derzeit nicht erreichbar</span>';
   }
 
+  // Social-Trends (laufendes Band)
   const chipsHtml = (data.lists.socialTrends || []).map((t) => {
     const count = t.count ? `<span class="chip-count">${fmtCount(t.count)}</span>` : '';
     const prefix = t.source === 'Bluesky' ? '' : '#';
@@ -457,25 +728,6 @@ function render(data) {
     track.style.transform = 'translateZ(0)';
     trendChips.classList.add('scrolling');
   });
-
-  // ── Zero Day Clock (Time-to-Exploit-Kennzahlen) ────────────
-  const zdc = data.lists.zeroDayClock;
-  if (zdc) {
-    el('zdc-tte').innerHTML =
-      `<span title="Median"><span class="live-value">${fmtNum1(zdc.medianTteDays)}</span> Tage Median</span>` +
-      `<span title="10%-getrimmter Mittelwert"><span class="live-value">${fmtNum1(zdc.meanTteDays)}</span> Tage Ø</span>`;
-    el('zdc-zerorate').innerHTML =
-      `<span><span class="live-value">${fmtNum1(zdc.zeroDayRatePct)}</span>&thinsp;%</span>` +
-      (zdc.exploitedCves !== null ? `<span class="item-meta">${fmtNum(zdc.exploitedCves)} CVEs</span>` : '');
-    el('zdc-exploitrate').innerHTML =
-      `<span><span class="live-value">${fmtNum1(zdc.exploitRatePct)}</span>&thinsp;%</span>` +
-      (zdc.totalCvesPublished !== null ? `<span class="item-meta">${fmtNum(zdc.totalCvesPublished)} CVEs gesamt</span>` : '') +
-      (zdc.ransomwareCves !== null ? `<span class="item-meta">${fmtNum(zdc.ransomwareCves)} mit Ransomware-Bezug</span>` : '');
-  } else {
-    el('zdc-tte').innerHTML = '<span class="empty-note">Quelle nicht erreichbar</span>';
-    el('zdc-zerorate').innerHTML = '';
-    el('zdc-exploitrate').innerHTML = '';
-  }
 
   const tickerItems = [
     ...(data.lists.hackerNews || []).map(

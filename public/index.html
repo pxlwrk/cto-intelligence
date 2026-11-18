@@ -5,14 +5,12 @@
   <meta name="google" value="notranslate" />
   <meta name="viewport" content="width=1920" />
   <meta name="google" content="notranslate" />
-  <title>CTO Intelligence – Lagebild</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <title>CTO Intelligence: Lagebild</title>
+  <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- SVG icon sprite – inline, kein CDN erforderlich -->
+  <!-- SVG icon sprite, inline, kein CDN erforderlich -->
   <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" style="display:none;position:absolute">
     <symbol id="i-shield" viewBox="0 0 24 24">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
@@ -64,26 +62,29 @@
       <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
       <line x1="12" y1="20" x2="12.01" y2="20"/>
     </symbol>
-    <symbol id="i-server" viewBox="0 0 24 24">
-      <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-      <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-      <line x1="6" y1="6" x2="6.01" y2="6"/>
-      <line x1="6" y1="18" x2="6.01" y2="18"/>
+      <symbol id="i-calendar" viewBox="0 0 24 24">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
     </symbol>
-    <symbol id="i-share2" viewBox="0 0 24 24">
-      <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+    <symbol id="i-file-text" viewBox="0 0 24 24">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </symbol>
+    <symbol id="i-trending-up" viewBox="0 0 24 24">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+      <polyline points="17 6 23 6 23 12"/>
     </symbol>
   </svg>
 
   <div id="refresh-progress" title="Zeit bis zur nächsten Aktualisierung"></div>
-  <div id="demo-banner" class="demo-banner hidden">DEMO-MODUS – Beispieldaten</div>
+  <div id="demo-banner" class="demo-banner hidden">DEMO-MODUS: Beispieldaten</div>
 
   <header class="topbar">
     <div class="brand">
       <div class="brand-title">CTO&nbsp;INTELLIGENCE</div>
-      <div class="brand-sub">Lagebild · Deutschland · Europa · Welt</div>
+      <div class="brand-sub">Lagebild für die Leitung: Sicherheit · Regulierung · Betrieb</div>
     </div>
     <div class="weather hidden" id="weather">
       <div class="weather-now">
@@ -96,24 +97,37 @@
       <div class="weather-details" id="weather-details"></div>
     </div>
     <div id="threat-badge" class="threat-badge level-1">
-      <div class="threat-label">Cyber-Bedrohungslage</div>
+      <div class="threat-label">Gesamtlage IT-Sicherheit</div>
       <div id="threat-value" class="threat-value">–</div>
     </div>
     <div class="clockbox">
       <div id="clock" class="clock">--:--</div>
       <div id="date" class="date">–</div>
-      <div class="updated">Daten aktualisiert: <span id="updated">–</span> Uhr · Quellen: <span id="source-health">–</span></div>
+      <div class="updated">Stand: <span id="updated">–</span> Uhr · Quellen: <span id="source-health">–</span></div>
     </div>
   </header>
 
   <section class="kpi-row">
-    <div class="kpi kpi-critical"><div class="kpi-value" id="kpi-cve-critical">–</div><div class="kpi-label">Kritische CVEs<span>7 Tage · NVD</span></div></div>
-    <div class="kpi"><div class="kpi-value" id="kpi-cve-total">–</div><div class="kpi-label">CVEs gesamt<span>7 Tage · NVD</span></div></div>
-    <div class="kpi kpi-exploited"><div class="kpi-value" id="kpi-kev7">–</div><div class="kpi-label">Aktiv ausgenutzt<span>7 Tage · CISA KEV</span></div></div>
-    <div class="kpi"><div class="kpi-value" id="kpi-kev30">–</div><div class="kpi-label">Aktiv ausgenutzt<span>30 Tage · CISA KEV</span></div></div>
-    <div class="kpi kpi-ransom"><div class="kpi-value" id="kpi-ransom">–</div><div class="kpi-label">Ransomware-Bezug<span>30 Tage · CISA KEV</span></div></div>
-    <div class="kpi"><div class="kpi-value" id="kpi-certbund">–</div><div class="kpi-label">Advisories<span>7 Tage · CERT-Bund</span></div></div>
-    <div class="kpi kpi-bsi"><div class="kpi-value" id="kpi-bsi">–</div><div class="kpi-label">BSI-Warnungen<span>7 Tage · CSW</span></div></div>
+    <div class="kpi kpi-critical">
+      <div class="kpi-value" id="kpi-cve-critical">–</div>
+      <div class="kpi-label">Kritische Schwachstellen<span>neu bekannt, 7 Tage · NVD</span><em class="delta" id="delta-cve-critical"></em></div>
+    </div>
+    <div class="kpi kpi-exploited">
+      <div class="kpi-value" id="kpi-kev7">–</div>
+      <div class="kpi-label">Aktiv ausgenutzt<span>von Angreifern genutzt, 7 Tage</span><em class="delta" id="delta-kev7"></em></div>
+    </div>
+    <div class="kpi kpi-ransom">
+      <div class="kpi-value" id="kpi-ransom">–</div>
+      <div class="kpi-label">Mit Ransomware-Bezug<span>von Erpressergruppen genutzt, 30 Tage</span><em class="delta" id="delta-ransom"></em></div>
+    </div>
+    <div class="kpi kpi-tte">
+      <div class="kpi-value" id="kpi-tte">–</div>
+      <div class="kpi-label">Tage bis zur Ausnutzung<span>Median ab Bekanntwerden der Lücke</span><em class="delta" id="delta-tte"></em></div>
+    </div>
+    <div class="kpi kpi-ops">
+      <div class="kpi-value" id="kpi-ops">–</div>
+      <div class="kpi-label">Cloud-Dienste gestört<span id="kpi-ops-sub">beobachtete Dienste insgesamt</span><em class="delta" id="delta-ops"></em></div>
+    </div>
   </section>
 
   <section class="trends">
@@ -122,22 +136,70 @@
   </section>
 
   <main class="grid">
-    <section class="panel chart-panel area-severity">
+    <!-- Block A: Lagebild IT-Sicherheit -->
+    <section class="panel chart-panel area-cvetrend">
       <h2>
         <svg class="ph" aria-hidden="true"><use href="#i-shield-ok"/></svg>
-        CVE-Schweregrade
-        <span class="panel-sub">letzte 7 Tage · NVD</span>
+        Kritische Schwachstellen pro Woche
+        <span class="panel-sub">NVD</span>
       </h2>
-      <div class="chart-wrap"><canvas id="chart-severity"></canvas></div>
+      <p class="panel-note">Neu veröffentlichte Lücken mit höchstem Schweregrad (CVSS 9 bis 10), je 7-Tage-Zeitraum</p>
+      <div class="chart-wrap"><canvas id="chart-cvetrend"></canvas><div class="chart-empty hidden" id="empty-cvetrend">Wochentrend wird aufgebaut</div></div>
     </section>
 
-    <section class="panel chart-panel area-timeline">
+    <section class="panel chart-panel area-kevweek">
       <h2>
         <svg class="ph" aria-hidden="true"><use href="#i-bar-chart"/></svg>
-        Aktive Ausnutzung
-        <span class="panel-sub">14 Tage · CISA KEV</span>
+        Aktiv ausgenutzte Lücken pro Woche
+        <span class="panel-sub">12 Wochen · CISA KEV</span>
       </h2>
-      <div class="chart-wrap"><canvas id="chart-timeline"></canvas></div>
+      <p class="panel-note">Rot: mit Ransomware-Bezug. Linie: Ø der letzten 4 Wochen</p>
+      <div class="chart-wrap"><canvas id="chart-kevweek"></canvas><div class="chart-empty hidden" id="empty-kevweek">Keine Daten</div></div>
+    </section>
+
+    <section class="panel chart-panel area-tte">
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-zap"/></svg>
+        Angreifer werden schneller
+        <span class="panel-sub" title="Eigene Berechnung aus CISA KEV (Aufnahmedatum) und CVE-Project (Veröffentlichungsdatum)">je Jahr</span>
+      </h2>
+      <p class="panel-note">Median der Tage zwischen Bekanntwerden einer Lücke und erstem Angriff</p>
+      <div class="chart-wrap"><canvas id="chart-tte"></canvas><div class="chart-empty hidden" id="empty-tte">Quelle derzeit nicht erreichbar</div></div>
+      <div class="chart-foot" id="tte-foot"></div>
+    </section>
+
+    <section class="panel summary-panel area-summary" id="summary-panel">
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-file-text"/></svg>
+        Was bedeutet das für uns?
+      </h2>
+      <div class="summary-headline" id="summary-headline">–</div>
+      <ul class="summary-list" id="summary-list"></ul>
+      <div class="summary-action">
+        <span class="summary-action-label">Empfehlung</span>
+        <span id="summary-action">–</span>
+      </div>
+    </section>
+
+    <!-- Block B: Digitale Souveränität und Regulierung -->
+    <section class="panel area-reg">
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-globe"/></svg>
+        Digitale Souveränität &amp; Regulierung
+        <span class="panel-sub">netzpolitik.org · heise · Golem · Tagesschau · BSI</span>
+      </h2>
+      <p class="panel-note">Meldungen nach Themen in den aktuellen Nachrichtenquellen</p>
+      <div class="reg-chart"><canvas id="chart-reg"></canvas><div class="chart-empty hidden" id="empty-reg">Keine passenden Meldungen</div></div>
+      <div id="list-reg" class="newslist"></div>
+    </section>
+
+    <section class="panel area-deadlines">
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-calendar"/></svg>
+        Kommende Fristen
+        <span class="panel-sub">EU &amp; Bund</span>
+      </h2>
+      <div id="list-deadlines" class="newslist"></div>
     </section>
 
     <section class="panel chart-panel area-vendors">
@@ -146,110 +208,55 @@
         Meistbetroffene Hersteller
         <span class="panel-sub">90 Tage · CISA KEV</span>
       </h2>
-      <div class="chart-wrap"><canvas id="chart-vendors"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-vendors"></canvas><div class="chart-empty hidden" id="empty-vendors">Keine Daten</div></div>
     </section>
 
-    <section class="panel live-row area-zdc" id="zdc-panel">
-      <div class="live-seg">
-        <span class="live-label" title="Eigene Berechnung aus CISA KEV (Aufnahmedatum) und CVE-Project-Mirror cvelistV5 (Veröffentlichungsdatum); Methodik angelehnt an zerodayclock.com">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-zap"/></svg>
-          Time-to-Exploit
-        </span>
-        <div class="live-content" id="zdc-tte"></div>
-      </div>
-      <div class="live-seg">
-        <span class="live-label">Zero-Day-Rate</span>
-        <div class="live-content" id="zdc-zerorate"></div>
-      </div>
-      <div class="live-seg">
-        <span class="live-label">Exploit-Rate</span>
-        <div class="live-content" id="zdc-exploitrate"></div>
-      </div>
-      <div class="live-seg live-seg-grow">
-        <span class="live-label" title="Median-TTE-Meilensteine, extrapoliert aus dem Trend 2018–2024 · zerodayclock.com/audit">Meilensteine Median-TTE</span>
-        <div class="live-content" id="zdc-milestones">
-          <span class="zdc-ms">Jahr <b>2021</b></span>
-          <span class="zdc-ms">Monat <b>2025</b></span>
-          <span class="zdc-ms">Woche <b>2026</b></span>
-          <span class="zdc-ms">Tag <b>2026</b></span>
-          <span class="zdc-ms proj">Std. <b>~2027</b></span>
-          <span class="zdc-ms proj">Min. <b>~2027</b></span>
+    <!-- Block C: Verfügbarkeit und Betrieb -->
+    <section class="panel area-avail">
+      <h2>
+        <svg class="ph" aria-hidden="true"><use href="#i-activity"/></svg>
+        Verfügbarkeit &amp; Betrieb
+        <span class="panel-sub">live</span>
+      </h2>
+      <div class="avail-label">Cloud- und KI-Dienste</div>
+      <div class="svc-grid" id="svc-status"></div>
+      <div class="avail-charts">
+        <div class="avail-chart">
+          <div class="avail-label">Strom aus erneuerbaren Quellen, 48 h</div>
+          <div class="mini-wrap"><canvas id="chart-energy"></canvas><div class="chart-empty hidden" id="empty-energy">Quelle nicht erreichbar</div></div>
+          <div class="avail-stat" id="energy-status"></div>
+        </div>
+        <div class="avail-chart" id="cloudflare-seg">
+          <div class="avail-label">Internet-Angriffsvolumen, 7 Tage</div>
+          <div class="mini-wrap"><canvas id="chart-ddos"></canvas><div class="chart-empty hidden" id="empty-ddos">Keine Daten</div></div>
+          <div class="avail-stat" id="cloudflare-status"></div>
         </div>
       </div>
-    </section>
-
-    <section class="panel live-row area-live">
-      <div class="live-seg">
-        <span class="live-label">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-activity"/></svg>
-          Dienste-Status <em>live</em>
-        </span>
-        <div class="live-content" id="svc-status"></div>
-      </div>
-      <div class="live-seg live-seg-grow">
-        <span class="live-label">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-alert-tri"/></svg>
-          Bevölkerungsschutz · Berlin
-        </span>
+      <div class="avail-label">Bevölkerungsschutz &amp; Wetterwarnungen · Berlin</div>
+      <div class="avail-lines">
         <div class="live-content civil-content" id="civil-status"></div>
-      </div>
-      <div class="live-seg">
-        <span class="live-label">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-cloud"/></svg>
-          DWD-Warnungen · Berlin
-        </span>
         <div class="live-content" id="dwd-status"></div>
       </div>
-      <div class="live-seg">
-        <span class="live-label">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-zap"/></svg>
-          Stromnetz DE · Fraunhofer ISE
-        </span>
-        <div class="live-content" id="energy-status"></div>
-      </div>
-      <div class="live-seg hidden" id="cloudflare-seg">
-        <span class="live-label">
-          <svg class="ph ph-sm" aria-hidden="true"><use href="#i-wifi"/></svg>
-          Internet · Cloudflare Radar
-        </span>
-        <div class="live-content" id="cloudflare-status"></div>
-      </div>
     </section>
 
+    <!-- Detailmeldungen -->
     <section class="panel area-certbund">
       <h2>
         <svg class="ph" aria-hidden="true"><use href="#i-shield"/></svg>
         CERT-Bund Sicherheitshinweise
+        <span class="panel-sub" id="certbund-sub"></span>
       </h2>
-      <div class="sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig · <i class="dot dot-ring"></i>ungepatcht · gedimmt&nbsp;=&nbsp;Update</div>
+      <div class="sev-legend"><i class="dot dot-kritisch"></i>kritisch <i class="dot dot-hoch"></i>hoch <i class="dot dot-mittel"></i>mittel <i class="dot dot-niedrig"></i>niedrig · <i class="dot dot-ring"></i>ungepatcht</div>
       <div id="list-certbund" class="newslist"></div>
     </section>
 
-    <section class="panel area-secnews">
+    <section class="panel area-news">
       <h2>
         <svg class="ph" aria-hidden="true"><use href="#i-newspaper"/></svg>
-        Security-News
-        <span class="panel-sub">heise Security · The Hacker News · BSI</span>
+        Security, Tech &amp; KI
+        <span class="panel-sub">heise · Hacker News · BSI · VentureBeat</span>
       </h2>
-      <div id="list-secnews" class="newslist"></div>
-    </section>
-
-    <section class="panel area-tech">
-      <h2>
-        <svg class="ph" aria-hidden="true"><use href="#i-cpu"/></svg>
-        Tech &amp; KI
-        <span class="panel-sub">heise · Golem · VentureBeat · MIT TR</span>
-      </h2>
-      <div id="list-tech" class="newslist"></div>
-    </section>
-
-    <section class="panel area-politics">
-      <h2>
-        <svg class="ph" aria-hidden="true"><use href="#i-globe"/></svg>
-        Deutschland &amp; Welt
-        <span class="panel-sub">Tagesschau</span>
-      </h2>
-      <div id="list-politics" class="newslist"></div>
+      <div id="list-news" class="newslist"></div>
     </section>
   </main>
 

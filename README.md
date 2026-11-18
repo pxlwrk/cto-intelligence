@@ -115,7 +115,7 @@ Entscheidungen:
   Quellen (ein Cache für beliebig viele Bildschirme) und hält API-Limits ein
   (NVD: 5 Requests/30 s ohne Key, Tagesschau: 60/h).
 - **Kein Build-Schritt, keine Datenbank**: ein `npm install`, ein Prozess.
-  Chart.js wird lokal aus `node_modules` ausgeliefert – das Dashboard braucht
+  Chart.js und Schriften werden lokal ausgeliefert, das Dashboard braucht
   im Betrieb keine CDNs.
 - **Fehler werden angezeigt, nicht kaschiert**: Fällt eine Quelle aus, zeigt
   das Panel „Quelle derzeit nicht erreichbar" bzw. der Quellen-Zähler im
@@ -124,21 +124,69 @@ Entscheidungen:
 
 ## KPIs und Visualisierungen
 
-- **Lage-Badge** (Grün/Gelb/Orange/Rot): Heuristik in Anlehnung an die
-  vierstufige BSI-Skala, berechnet aus kritischen CVEs (7 Tage),
-  KEV-Neuzugängen (7 Tage) und Ransomware-Bezug (30 Tage).
-  *Keine offizielle BSI-Lageeinstufung* – Schwellwerte in
-  `src/aggregator.js` (`computeThreatLevel`) anpassbar.
-- **7 KPI-Karten**: kritische CVEs, CVEs gesamt, aktiv ausgenutzte
-  Schwachstellen (7/30 Tage), Ransomware-Bezug, CERT-Bund-Advisories, BSI-Warnungen
-- **Donut**: CVE-Schweregradverteilung (NVD, 7 Tage)
-- **Balken-Zeitreihe**: CERT-Bund-Advisories vs. KEV-Neuzugänge (14 Tage)
-  mit getrennten Y-Achsen (links Advisories, rechts KEV), da sich die
-  Größenordnungen stark unterscheiden
-- **Hersteller-Ranking**: meistbetroffene Vendoren im KEV-Katalog (90 Tage)
-- **4 Listen-Panels**: CERT-Bund (mit Risikoklasse-Badges), Security-News,
-  Tech & KI, Deutschland & Welt
-- **Lauf-Ticker**: Hacker-News-Topstories (mit Score) + CERT-EU-Advisories
+Das Dashboard ist für die Leitungsebene aufgebaut: oben die Gesamtlage und
+fünf Kennzahlen mit Vorwochenvergleich, darunter drei Themenblöcke mit
+Diagrammen und Trends, unten Detailmeldungen. Alle Texte sind bewusst in
+einfacher Sprache gehalten, jedes Diagramm trägt eine Erklärzeile.
+
+**Kopfzeile und Kennzahlen**
+
+- **Gesamtlage IT-Sicherheit** (Unbekannt/Grün/Gelb/Orange/Rot): Heuristik in
+  Anlehnung an die vierstufige BSI-Skala, berechnet aus kritischen CVEs
+  (7 Tage), KEV-Neuzugängen (7 Tage) und Ransomware-Bezug (30 Tage).
+  *Keine offizielle BSI-Lageeinstufung*, Schwellwerte in
+  `src/aggregator.js` (`computeThreatLevel`) anpassbar. Ist der KEV-Katalog
+  nicht erreichbar, zeigt das Badge „Unbekannt" statt einer scheinbar
+  ruhigen Lage.
+- **5 Kennzahlen** mit Pfeil und Veränderung (rot/orange = ungünstig,
+  grün = günstig): kritische Schwachstellen (Vorwoche), aktiv ausgenutzte
+  Lücken (Vorwoche), Ransomware-Bezug (Vormonat), Median der Tage bis zur
+  Ausnutzung (Entwicklung seit dem ersten Jahr) und Cloud-Dienste mit Störung.
+
+**Block A: Lagebild IT-Sicherheit**
+
+- *Kritische Schwachstellen pro Woche* (NVD, vier 7-Tage-Zeiträume, nur
+  CVSS v3 „kritisch"). Der Wochentrend kostet 4 zusätzliche NVD-Abfragen
+  (Limit ohne Key: 5 pro 30 s) und fällt bei Zeitüberschreitung weg, die
+  7-Tage-Kennzahlen bleiben dann erhalten.
+- *Aktiv ausgenutzte Lücken pro Woche* (CISA KEV, 12 Wochen, davon mit
+  Ransomware-Bezug, plus Durchschnitt der letzten 4 Wochen).
+- *Angreifer werden schneller*: Median der Tage zwischen Veröffentlichung
+  einer Lücke und Aufnahme in den KEV-Katalog je Jahr sowie Anteil der am
+  selben Tag ausgenutzten Lücken. Eigene Berechnung (CISA KEV und CVE-Project
+  `cvelistV5`), Jahre mit weniger als 10 Fällen entfallen.
+- *Was bedeutet das für uns?*: regelbasierte Zusammenfassung in Klartext mit
+  Handlungsempfehlung je Lagestufe (`buildSummary`). Fehlende Daten führen zum
+  Weglassen des Satzes, nie zu erfundenen Werten.
+
+**Block B: Digitale Souveränität und Regulierung**
+
+- Themenradar (Balkendiagramm) und Meldungsliste: Titel aus netzpolitik.org,
+  heise, Golem, Tagesschau und BSI werden per Stichwortliste Themen
+  zugeordnet (NIS2/KRITIS, Cyber Resilience Act, KI-Regulierung, Cloud und
+  Souveränität, Verwaltungsdigitalisierung, Datenschutz, BSI und
+  Cyberabwehr). Die Liste `REGULATION_TOPICS` in `src/aggregator.js` ist
+  anpassbar.
+- *Kommende Fristen* mit Countdown aus `src/regulatory-calendar.js`. Diese
+  Liste wird **von Hand gepflegt** und sollte regelmäßig gegen die amtlichen
+  Quellen geprüft werden; vergangene Termine verschwinden automatisch.
+
+**Block C: Verfügbarkeit und Betrieb**
+
+- Ampel der Cloud- und KI-Dienste, Verlauf des Anteils erneuerbarer Energien
+  (48 h, Energy-Charts), Angriffsvolumen und Internet-Ausfälle (Cloudflare
+  Radar, nur mit `CLOUDFLARE_API_TOKEN`), Bevölkerungsschutz und
+  DWD-Wetterwarnungen für die Region (Standard Berlin).
+
+**Weitere Elemente**
+
+- *Meistbetroffene Hersteller* (CISA KEV, 90 Tage), *CERT-Bund
+  Sicherheitshinweise* mit Risikoklasse, *Security, Tech und KI* als
+  gemeinsame Meldungsliste, Social-Trends-Band, Lauf-Ticker mit
+  Hacker-News-Topstories und CERT-EU-Advisories.
+- Schriften (Inter, JetBrains Mono) kommen lokal aus `@fontsource` und werden
+  beim Build nach `public/vendor/fonts` kopiert, es sind keine externen CDNs
+  nötig.
 
 ## Betrieb
 
@@ -146,6 +194,7 @@ Entscheidungen:
 npm install
 npm start            # http://localhost:3000
 npm run demo         # Demo-Modus mit Beispieldaten (für Layout-Tests ohne Internet)
+npm test             # Tests der Trend- und Zusammenfassungslogik
 PORT=8080 npm start  # anderer Port
 ```
 
@@ -222,8 +271,10 @@ Daten – manuelle Eingriffe sind nicht nötig.
 server.js            Express-Server, /api/dashboard, statische Auslieferung
 src/fetchers.js      HTTP-/RSS-/API-Clients (Timeout, User-Agent, NVD-Paginierung)
 src/aggregator.js    Quellenkatalog, Cache, KPI-/Chart-Berechnung, Lage-Heuristik
+src/regulatory-calendar.js  Von Hand gepflegte Fristen (EU/Bund)
 src/demo-data.js     Beispieldaten für den Demo-Modus
-public/              Kiosk-Frontend (HTML/CSS/JS, Chart.js lokal)
+public/              Kiosk-Frontend (HTML/CSS/JS, Chart.js und Schriften lokal)
+test/                Tests für Trend- und Zusammenfassungslogik (npm test)
 ```
 
 ## Erweiterungsideen

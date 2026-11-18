@@ -7,6 +7,8 @@
  * angezeigt, fehlende Quellen werden stattdessen als gestört markiert.
  */
 
+const { upcomingDeadlines } = require('./regulatory-calendar');
+
 function iso(daysBack, hour = 9) {
   const d = new Date();
   d.setDate(d.getDate() - daysBack);
@@ -105,14 +107,47 @@ function buildDemoDashboard() {
     });
   }
 
+  const weekKey = (weeksBack) => {
+    const d = new Date(Date.now() - weeksBack * 7 * 86400000);
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  };
+  const kevCounts = [3, 5, 4, 7, 6, 4, 9, 8, 6, 11, 7, 6];
+  const ransomCounts = [0, 1, 0, 2, 1, 0, 2, 1, 1, 3, 1, 2];
+  const kevWeekly = kevCounts.map((kev, i) => {
+    const window = kevCounts.slice(Math.max(0, i - 3), i + 1);
+    return {
+      weekStart: weekKey(kevCounts.length - 1 - i),
+      kev,
+      ransomware: ransomCounts[i],
+      avg4: Math.round((window.reduce((a, b) => a + b, 0) / window.length) * 10) / 10,
+    };
+  });
+  const now = Date.now();
+  const energyHistory = Array.from({ length: 48 }, (_, i) => ({
+    t: now - (47 - i) * 3600 * 1000,
+    v: Math.round((48 + 22 * Math.sin(i / 7) + (i % 5)) * 10) / 10,
+  }));
+
   return {
     generatedAt: new Date().toISOString(),
     demo: true,
     threatLevel: {
       level: 3,
-      label: 'Orange – Hoch',
+      label: 'Orange: Hoch',
       reason: 'Deutlich erhöhte aktive Ausnutzung kritischer Schwachstellen (Demo)',
     },
+    summary: {
+      headline: 'Lage angespannt: Patch-Priorität erhöhen',
+      bullets: [
+        '6 Schwachstellen wurden in den letzten 7 Tagen als aktiv ausgenutzt bestätigt, mehr als in der Vorwoche (4).',
+        '5 ausgenutzte Lücken werden in 30 Tagen bereits von Erpressergruppen (Ransomware) eingesetzt.',
+        'Angreifer nutzen neue Lücken im Median nach 5,2 Tagen aus. Das Zeitfenster zum Patchen ist entsprechend kurz.',
+        '2 von 8 beobachteten Cloud-Diensten melden Störungen (Vercel, OpenAI).',
+      ],
+      action: 'Kritische Patches für aus dem Internet erreichbare Systeme innerhalb von 72 Stunden einplanen.',
+    },
+    kpiPrev: { cveCritical7d: 31, kev7d: 4, ransomwareKev30d: 7 },
     kpis: {
       cveTotal7d: 612,
       cveCritical7d: 38,
@@ -125,7 +160,22 @@ function buildDemoDashboard() {
     },
     charts: {
       cveSeverity: { CRITICAL: 38, HIGH: 154, MEDIUM: 261, LOW: 47, NONE: 112 },
+      cveWeeklyCritical: [
+        { weekStart: weekKey(3), critical: 27 },
+        { weekStart: weekKey(2), critical: 34 },
+        { weekStart: weekKey(1), critical: 31 },
+        { weekStart: weekKey(0), critical: 38 },
+      ],
       advisoryTimeline,
+      kevWeekly,
+      regulationTopics: [
+        { topic: 'Cloud & Souveränität', count: 4 },
+        { topic: 'KI-Regulierung', count: 3 },
+        { topic: 'Verwaltungsdigitalisierung', count: 3 },
+        { topic: 'NIS2 / KRITIS', count: 2 },
+        { topic: 'BSI & Cyberabwehr', count: 2 },
+        { topic: 'Datenschutz & Daten', count: 1 },
+      ],
       kevTopVendors: [
         { vendor: 'Microsoft', count: 9 },
         { vendor: 'Ivanti', count: 7 },
@@ -176,7 +226,19 @@ function buildDemoDashboard() {
         { title: 'Bundesweiter Warntag: Probewarnung des BBK', provider: 'MOWAS', severity: 'Minor', date: iso(0, 11) },
         { title: 'Polizeieinsatz Berlin-Mitte: Bereich um den Hauptbahnhof meiden', provider: 'POLIZEI', severity: 'Moderate', date: iso(0, 9) },
       ],
-      energy: { renShare: 64.2, signal: 2, loadGw: 58.4 },
+      energy: { renShare: 64.2, signal: 2, loadGw: 58.4, history: energyHistory },
+      regulation: [
+        { title: 'Bund beschließt Cloud-Strategie: Souveräne Cloud für die Verwaltung kommt', source: 'heise', date: iso(0, 10), topic: 'Cloud & Souveränität' },
+        { title: 'EU-Parlament einigt sich auf Durchführungsverordnung zum AI Act', source: 'Golem', date: iso(0, 8), topic: 'KI-Regulierung' },
+        { title: 'BSI veröffentlicht Mindeststandard für Cloud-Nutzung in der Verwaltung', source: 'BSI', date: iso(1, 12), topic: 'BSI & Cyberabwehr' },
+        { title: 'OZG 3.0: Neue Frist für digitale Verwaltungsleistungen', source: 'heise', date: iso(1, 9), topic: 'Verwaltungsdigitalisierung' },
+        { title: 'NIS2-Umsetzung: Erste Bundesbehörden melden sich beim BSI an', source: 'netzpolitik.org', date: iso(2, 13), topic: 'NIS2 / KRITIS' },
+        { title: 'Open-Source-Strategie des Bundes: openDesk erreicht Version 2.0', source: 'heise', date: iso(2, 11), topic: 'Cloud & Souveränität' },
+        { title: 'Digitalministerium legt Bericht zur Verwaltungsmodernisierung vor', source: 'Tagesschau', date: iso(3, 10), topic: 'Verwaltungsdigitalisierung' },
+        { title: 'Cyber Resilience Act: Hersteller bereiten Meldeprozesse vor', source: 'Golem', date: iso(3, 9), topic: 'Cyber Resilience Act' },
+      ].map((it) => ({ ...it, link: '#' })),
+      deadlines: upcomingDeadlines(5),
+      serviceSummary: { known: 8, disrupted: 2, names: ['Vercel', 'OpenAI'] },
       weather: {
         temp: 21.4,
         feels: 20.1,
@@ -196,7 +258,7 @@ function buildDemoDashboard() {
         uv: 6,
         pollen: { max: 2, top: [{ type: 'Gräser', level: 2 }, { type: 'Roggen', level: 1 }] },
       },
-      cloudflare: { outages24h: 9, outagesDe: 0, ddosTrendPct: 23 },
+      cloudflare: { outages24h: 9, outagesDe: 0, ddosTrendPct: 23, ddosSeries: [1.02, 0.98, 1.1, 1.05, 0.96, 1.08, 1.25] },
       zeroDayClock: {
         meanTteDays: 18.4,
         medianTteDays: 5.2,
@@ -205,6 +267,14 @@ function buildDemoDashboard() {
         exploitedCves: 1850,
         exploitRatePct: 0.6,
         totalCvesPublished: 286000,
+        tteByYear: [
+          { year: 2021, medianDays: 52, zeroDayRatePct: 14, n: 290 },
+          { year: 2022, medianDays: 38, zeroDayRatePct: 19, n: 560 },
+          { year: 2023, medianDays: 21, zeroDayRatePct: 26, n: 190 },
+          { year: 2024, medianDays: 12, zeroDayRatePct: 31, n: 185 },
+          { year: 2025, medianDays: 7, zeroDayRatePct: 35, n: 245 },
+          { year: 2026, medianDays: 5.2, zeroDayRatePct: 38, n: 120 },
+        ],
       },
       socialTrends: [
         { tag: 'ZeroDay', count: 4100, source: 'infosec.exchange', cto: true },

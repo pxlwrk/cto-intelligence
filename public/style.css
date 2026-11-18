@@ -72,7 +72,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 78px;
+  height: 70px;
   flex: 0 0 auto;
 }
 
@@ -83,7 +83,7 @@ body {
   color: var(--accent);
 }
 .brand-sub {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-dim);
   letter-spacing: 2px;
 }
@@ -110,7 +110,7 @@ body {
 .weather-desc { font-size: 12px; color: var(--text-dim); margin-top: 3px; white-space: nowrap; }
 .weather-details {
   display: grid;
-  grid-template-columns: repeat(5, auto);
+  grid-template-columns: repeat(3, auto);
   gap: 3px 18px;
 }
 .wd-item { display: flex; gap: 7px; align-items: baseline; font-size: 12.5px; white-space: nowrap; }
@@ -120,11 +120,12 @@ body {
 .threat-badge {
   text-align: center;
   border-radius: 10px;
-  padding: 8px 36px;
+  padding: 6px 36px;
   border: 1px solid;
 }
 .threat-label { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85; }
 .threat-value { font-size: 26px; font-weight: 700; letter-spacing: 1px; }
+.threat-badge.level-0 { background: #1e293b45; border-color: var(--none); color: var(--text-dim); }
 .threat-badge.level-1 { background: #052e1645; border-color: var(--low); color: var(--low); }
 .threat-badge.level-2 { background: #42200645; border-color: var(--medium); color: var(--medium); }
 .threat-badge.level-3 { background: #43140745; border-color: var(--high); color: var(--high); }
@@ -144,9 +145,9 @@ body {
 /* ── KPI-Reihe ───────────────────────────────────────────── */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
-  height: 96px;
+  height: 92px;
   flex: 0 0 auto;
 }
 
@@ -156,12 +157,15 @@ body {
   border-radius: 10px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 0 10px;
+  gap: 16px;
+  padding: 0 16px;
+  overflow: hidden;
 }
 .kpi-value {
-  font-size: 44px;
+  flex: 0 0 auto;
+  min-width: 92px;
+  text-align: right;
+  font-size: 48px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
@@ -171,9 +175,24 @@ body {
 .kpi-critical .kpi-value { color: var(--critical); }
 .kpi-exploited .kpi-value { color: var(--high); }
 .kpi-ransom .kpi-value { color: #f43f5e; }
-.kpi-bsi .kpi-value { color: var(--medium); }
-.kpi-label { font-size: 14px; line-height: 1.25; color: var(--text); }
-.kpi-label span { display: block; font-size: 11px; color: var(--text-dim); }
+.kpi-tte .kpi-value { color: var(--medium); }
+.kpi-ops .kpi-value { color: var(--low); }
+.kpi-ops.has-issue .kpi-value { color: var(--high); }
+.kpi-label { min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.25; color: var(--text); }
+.kpi-label span { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Veränderung zur Vorwoche: Pfeil und Wert, Farbe nach Bedeutung */
+.delta {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+.delta.worse { color: var(--high); }
+.delta.better { color: var(--low); }
 
 /* ── Hauptraster ─────────────────────────────────────────── */
 .grid {
@@ -181,30 +200,24 @@ body {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: 36fr 68px 58px 46fr;
+  grid-template-rows: 292px 1fr 1fr;
   gap: 12px;
   grid-template-areas:
-    "sev  sev  sev  tim  tim  tim  tim  tim  ven  ven  ven  ven"
-    "zdc  zdc  zdc  zdc  zdc  zdc  zdc  zdc  zdc  zdc  zdc  zdc"
-    "live live live live live live live live live live live live"
-    "cb   cb   cb   sec  sec  sec  tech tech tech pol  pol  pol";
+    "cvt  cvt  cvt  kvw  kvw  kvw  tte  tte  tte  sum  sum  sum"
+    "reg  reg  reg  dl   dl   dl   avl  avl  avl  cb   cb   cb"
+    "reg  reg  reg  ven  ven  ven  avl  avl  avl  nws  nws  nws";
 }
 
-.area-live { grid-area: live; }
-.area-zdc { grid-area: zdc; }
-
-.area-severity { grid-area: sev; }
-.area-timeline { grid-area: tim; }
+.area-cvetrend { grid-area: cvt; }
+.area-kevweek  { grid-area: kvw; }
+.area-tte      { grid-area: tte; }
+.area-summary  { grid-area: sum; }
+.area-reg      { grid-area: reg; }
+.area-deadlines { grid-area: dl; }
 .area-vendors  { grid-area: ven; }
+.area-avail    { grid-area: avl; }
 .area-certbund { grid-area: cb; }
-.area-secnews  { grid-area: sec; }
-.area-tech     { grid-area: tech; }
-.area-politics { grid-area: pol; }
-
-/* Zero Day Clock – Meilenstein-Chips */
-.zdc-ms { font-size: 13px; color: var(--text); }
-.zdc-ms b { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--low); }
-.zdc-ms.proj b { color: var(--text-dim); }
+.area-news     { grid-area: nws; }
 
 .panel {
   background: var(--panel);
@@ -260,6 +273,163 @@ body {
 
 .chart-wrap { flex: 1 1 auto; min-height: 0; position: relative; }
 .chart-wrap canvas { position: absolute; inset: 0; }
+
+.panel-note {
+  flex: 0 0 auto;
+  margin: -4px 0 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-style: italic;
+  background: var(--panel);
+  z-index: 3;
+}
+.chart-foot {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 18px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.chart-foot b { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+
+/* Management-Zusammenfassung */
+.summary-panel { border-color: #2c4a6e; }
+.summary-headline {
+  flex: 0 0 auto;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.summary-panel.level-0 .summary-headline { color: var(--text-dim); }
+.summary-panel.level-1 .summary-headline { color: var(--low); }
+.summary-panel.level-2 .summary-headline { color: var(--medium); }
+.summary-panel.level-3 .summary-headline { color: var(--high); }
+.summary-panel.level-4 .summary-headline { color: var(--critical); }
+.summary-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.summary-list li { position: relative; padding-left: 14px; }
+.summary-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.summary-action {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #0d1a30;
+  border: 1px solid #2c4a6e;
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.summary-action-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+/* Regulierung: Themenchart über der Meldungsliste */
+.reg-chart { flex: 0 0 150px; position: relative; margin-bottom: 8px; }
+.reg-chart canvas { position: absolute; inset: 0; }
+.area-reg .newslist { border-top: 1px solid var(--panel-border); padding-top: 8px; }
+.area-reg .newslist .nitem { font-size: 14px; }
+.topic-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #1b2c4a;
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+/* Fristen mit Countdown */
+.deadline { align-items: center !important; gap: 10px !important; }
+.deadline-days {
+  flex: 0 0 64px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+}
+.deadline-days small { display: block; margin-top: 2px; font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 400; color: var(--text-dim); }
+.deadline-days.soon { color: var(--high); }
+.deadline-text { font-size: 14px; font-weight: 600; line-height: 1.25; min-width: 0; }
+.deadline-text .item-meta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 2px 0 0; font-weight: 400; font-size: 11.5px; white-space: normal; }
+
+/* Verfügbarkeit und Betrieb */
+.avail-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 2px 0 5px;
+}
+.svc-grid {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.svc-card {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  background: #0d1426;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  font-size: 13px;
+  min-width: 0;
+}
+.svc-card.bad { border-color: var(--high); }
+.avail-charts { flex: 1 1 auto; min-height: 0; display: flex; gap: 12px; margin-bottom: 6px; }
+.avail-chart { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.avail-chart.hidden { display: none; }
+.mini-wrap { flex: 1 1 auto; min-height: 0; position: relative; }
+.mini-wrap canvas { position: absolute; inset: 0; }
+.avail-stat { flex: 0 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; margin-top: 4px; font-size: 12.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; }
+.avail-lines { flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px; }
+
 
 /* ── News-Listen ─────────────────────────────────────────── */
 .newslist {
@@ -382,7 +552,7 @@ body {
 /* ── Social-Media-Trends ─────────────────────────────────── */
 .trends {
   flex: 0 0 auto;
-  height: 38px;
+  height: 32px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -446,7 +616,7 @@ body {
 /* ── Ticker ──────────────────────────────────────────────── */
 .ticker {
   flex: 0 0 auto;
-  height: 40px;
+  height: 36px;
   margin: 0 -18px;
   display: flex;
   align-items: center;
@@ -463,37 +633,7 @@ body {
   color: var(--accent);
   border-right: 1px solid var(--panel-border);
 }
-/* ── Live-Zeile: Dienste, DWD, Stromnetz ─────────────────── */
-.live-row {
-  flex-direction: row;
-  align-items: stretch;
-  padding: 8px 14px;
-  gap: 0;
-}
-.live-seg {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 18px;
-  border-right: 1px solid var(--panel-border);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.live-seg:first-child { padding-left: 4px; }
-.live-seg:last-child { border-right: none; }
-.live-seg-grow { flex: 1 1 auto; min-width: 0; }
-.live-label {
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.live-label em { font-style: normal; color: var(--low); }
+/* ── Live-Inhalte (Verfügbarkeit, Warnungen) ─────────────── */
 .live-content {
   display: flex;
   align-items: center;

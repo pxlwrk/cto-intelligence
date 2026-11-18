@@ -94,7 +94,43 @@ async function fetchNvdRecent(days = 7) {
     if (startIndex >= total) break;
     await new Promise((r) => setTimeout(r, 6500));
   }
-  return { total, severities, days, sampled: startIndex < total ? startIndex : total };
+  const result = { total, severities, days, sampled: startIndex < total ? startIndex : total };
+  // Wochentrend optional: scheitert er (Rate-Limit, Zeitbudget), bleiben die
+  // Kennzahlen der letzten 7 Tage trotzdem verfügbar.
+  try {
+    result.weeklyCritical = await fetchNvdWeeklyCritical(4, Date.now() + 25000);
+  } catch (err) {
+    console.error(`[nvd] Wochentrend nicht verfügbar: ${err.message}`);
+    result.weeklyCritical = null;
+  }
+  return result;
+}
+
+/**
+ * Anzahl neu veröffentlichter CVEs mit CVSS-v3-Schweregrad „kritisch" je
+ * Kalenderwoche (rollierend, 7-Tage-Fenster, ältestes zuerst). Pro Woche ein
+ * schlanker Request (resultsPerPage=1, nur totalResults wird gelesen). Die
+ * Abfragen laufen nacheinander, um das Limit der NVD-API ohne Key (5 Anfragen
+ * je 30 s) einzuhalten. `deadline` begrenzt die Gesamtlaufzeit.
+ */
+async function fetchNvdWeeklyCritical(weeks = 4, deadline = Infinity) {
+  const fmt = (d) => d.toISOString().replace('Z', '');
+  const DAY = 24 * 3600 * 1000;
+  const now = Date.now();
+  const series = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    if (Date.now() > deadline) throw new Error('Zeitbudget für Wochentrend überschritten');
+    const start = new Date(now - (i + 1) * 7 * DAY);
+    const end = new Date(now - i * 7 * DAY);
+    const url =
+      'https://services.nvd.nist.gov/rest/json/cves/2.0/?noRejected&cvssV3Severity=CRITICAL' +
+      `&pubStartDate=${encodeURIComponent(fmt(start))}` +
+      `&pubEndDate=${encodeURIComponent(fmt(end))}&resultsPerPage=1`;
+    const data = await fetchJson(url);
+    series.push({ weekStart: start.toISOString().slice(0, 10), critical: data.totalResults ?? 0 });
+    if (i > 0) await new Promise((r) => setTimeout(r, 6500));
+  }
+  return series;
 }
 
 /** NVD CVE API 2.0: Gesamtzahl aller je veröffentlichten CVEs (ein schlanker Request). */
@@ -236,6 +272,23 @@ async function fetchNinaDashboard(ags = process.env.NINA_AGS || '110000000000') 
  * Stromnetz Deutschland (Energy-Charts API des Fraunhofer ISE, ohne Key):
  * EE-Anteil-Ampel (/signal) und aktuelle Netzlast (/public_power).
  */
+/**
+ * Verlauf des Anteils erneuerbarer Energien (bis jetzt, höchstens 48
+ * Stundenwerte). Prognosewerte in der Zukunft werden verworfen.
+ */
+function energyHistory(signal) {
+  const times = signal.unix_seconds || [];
+  const shares = signal.share || [];
+  const nowSec = Date.now() / 1000;
+  const points = [];
+  for (let i = 0; i < Math.min(times.length, shares.length); i++) {
+    if (shares[i] === null || shares[i] === undefined || times[i] > nowSec) continue;
+    points.push({ t: times[i] * 1000, v: Math.round(shares[i] * 10) / 10 });
+  }
+  const step = Math.max(1, Math.round(points.length / 48));
+  return points.filter((_, i) => (points.length - 1 - i) % step === 0).slice(-48);
+}
+
 async function fetchEnergy() {
   const lastValid = (arr) => {
     for (let i = (arr || []).length - 1; i >= 0; i--) {
@@ -249,6 +302,7 @@ async function fetchEnergy() {
     renShare: lastValid(signal.share),
     signal: lastValid(signal.signal), // 0 = rot, 1 = gelb, 2 = grün, 3 = grün+
     loadGw: null,
+    history: energyHistory(signal),
   };
   try {
     const power = await fetchJson('https://api.energy-charts.info/public_power?country=de');
@@ -285,12 +339,14 @@ async function fetchCloudflareRadar() {
     outages24h: annotations.length,
     outagesDe: annotations.filter((a) => (a.locations || []).some(isDe)).length,
     ddosTrendPct: null,
+    ddosSeries: null,
   };
 
   try {
     const ts = await get('/radar/attacks/layer7/timeseries?dateRange=7d&aggInterval=1d&format=json');
     const values = (ts.main?.values || []).map(Number).filter((v) => !Number.isNaN(v));
     if (values.length >= 3) {
+      result.ddosSeries = values.map((v) => Math.round(v * 1000) / 1000);
       const latest = values[values.length - 1];
       const mean = values.slice(0, -1).reduce((a, b) => a + b, 0) / (values.length - 1);
       if (mean > 0) result.ddosTrendPct = Math.round(((latest - mean) / mean) * 100);
@@ -457,9 +513,9 @@ function trimmedMean(nums) {
 
 const round1 = (n) => (n === null || n === undefined ? null : Math.round(n * 10) / 10);
 
-async function fetchZeroDayClock() {
+async function fetchZeroDayClock(getKev = fetchKev) {
   const [kev, totalCvesPublished] = await Promise.all([
-    fetchKev(),
+    getKev(),
     fetchNvdTotalCount().catch(() => null),
   ]);
 
@@ -470,6 +526,7 @@ async function fetchZeroDayClock() {
   }));
 
   const ttes = [];
+  const byYear = new Map(); // Jahr der KEV-Aufnahme -> TTE-Werte
   for (const { v, date } of published) {
     if (!date) continue;
     const pub = new Date(date);
@@ -480,6 +537,9 @@ async function fetchZeroDayClock() {
     const tte = Math.round((addedDay - pubDay) / 86400000);
     if (tte < -180) continue; // Ausreißer/Datenfehler
     ttes.push(tte);
+    const year = Number(v.dateAdded.slice(0, 4));
+    if (!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year).push(tte);
   }
 
   if (!ttes.length) throw new Error('Time-to-Exploit: keine auswertbare CVE-Kohorte');
@@ -494,6 +554,16 @@ async function fetchZeroDayClock() {
     totalCvesPublished,
     ransomwareCves: kev.filter((v) => v.ransomware).length,
     sampleSize: ttes.length,
+    // Entwicklung je Aufnahmejahr; Jahre mit sehr kleiner Kohorte entfallen
+    tteByYear: [...byYear.entries()]
+      .filter(([, vals]) => vals.length >= 10)
+      .sort((a, b) => a[0] - b[0])
+      .map(([year, vals]) => ({
+        year,
+        medianDays: round1(median(vals)),
+        zeroDayRatePct: round1((vals.filter((t) => t <= 0).length / vals.length) * 100),
+        n: vals.length,
+      })),
   };
 }
 

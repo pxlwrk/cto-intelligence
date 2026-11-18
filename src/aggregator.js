@@ -15,6 +15,7 @@ const {
   fetchWeather,
   fetchZeroDayClock,
 } = require('./fetchers');
+const { upcomingDeadlines } = require('./regulatory-calendar');
 
 const MIN = 60 * 1000;
 
@@ -57,7 +58,7 @@ const SOURCES = [
   },
   {
     id: 'nvd',
-    name: 'NVD CVE-Statistik (7 Tage)',
+    name: 'NVD CVE-Statistik (7 Tage und Wochentrend)',
     ttl: 60 * MIN,
     fetch: () => fetchNvdRecent(7),
   },
@@ -77,13 +78,13 @@ const SOURCES = [
     id: 'heise',
     name: 'heise online',
     ttl: 10 * MIN,
-    fetch: () => fetchFeed('https://www.heise.de/rss/heise-atom.xml', 'heise', 12),
+    fetch: () => fetchFeed('https://www.heise.de/rss/heise-atom.xml', 'heise', 30),
   },
   {
     id: 'golem',
     name: 'Golem.de',
     ttl: 10 * MIN,
-    fetch: () => fetchFeed('https://rss.golem.de/rss.php?feed=RSS2.0', 'Golem', 12),
+    fetch: () => fetchFeed('https://rss.golem.de/rss.php?feed=RSS2.0', 'Golem', 30),
   },
   {
     id: 'venturebeatAi',
@@ -96,6 +97,12 @@ const SOURCES = [
     name: 'MIT Technology Review',
     ttl: 30 * MIN,
     fetch: () => fetchFeed('https://www.technologyreview.com/feed/', 'MIT Tech Review', 10),
+  },
+  {
+    id: 'netzpolitik',
+    name: 'netzpolitik.org',
+    ttl: 15 * MIN,
+    fetch: () => fetchFeed('https://netzpolitik.org/feed/', 'netzpolitik.org', 30),
   },
   {
     id: 'hn',
@@ -184,17 +191,32 @@ const SOURCES = [
     id: 'zeroDayClock',
     name: 'Time-to-Exploit-Kennzahlen (CISA KEV + CVE Project, eigene Berechnung)',
     ttl: 60 * MIN,
-    fetch: fetchZeroDayClock,
+    // nutzt den KEV-Katalog der Quelle „kev" mit, statt ihn erneut zu laden
+    fetch: () =>
+      fetchZeroDayClock(async () => {
+        const entry = await getSource(SOURCES.find((src) => src.id === 'kev'));
+        if (!entry.data) throw new Error('KEV-Katalog nicht verfügbar');
+        return entry.data;
+      }),
   },
 ];
 
 const cache = new Map(); // id -> { data, fetchedAt, error }
+const inflight = new Map(); // id -> Promise, verhindert Doppelabrufe derselben Quelle
 
-async function getSource(source) {
+function getSource(source) {
+  const entry = cache.get(source.id);
+  if (entry && entry.data && Date.now() - entry.fetchedAt < source.ttl) return Promise.resolve(entry);
+  if (!inflight.has(source.id)) {
+    const p = loadSource(source).finally(() => inflight.delete(source.id));
+    inflight.set(source.id, p);
+  }
+  return inflight.get(source.id);
+}
+
+async function loadSource(source) {
   const entry = cache.get(source.id);
   const now = Date.now();
-  if (entry && entry.data && now - entry.fetchedAt < source.ttl) return entry;
-
   try {
     const data = await source.fetch();
     const fresh = { data, fetchedAt: now, error: null };
@@ -221,15 +243,15 @@ function countSince(items, days, dateField = 'date') {
 /** Heuristische Lageeinstufung in Anlehnung an die vierstufige BSI-Skala. */
 function computeThreatLevel({ cveCritical7d, kev7d, ransomwareKev30d }) {
   if (kev7d >= 10 || cveCritical7d >= 60 || ransomwareKev30d >= 8) {
-    return { level: 4, label: 'Rot – Kritisch', reason: 'Massive aktive Ausnutzung / sehr viele kritische Schwachstellen' };
+    return { level: 4, label: 'Rot: Kritisch', reason: 'Massive aktive Ausnutzung / sehr viele kritische Schwachstellen' };
   }
   if (kev7d >= 5 || cveCritical7d >= 30 || ransomwareKev30d >= 4) {
-    return { level: 3, label: 'Orange – Hoch', reason: 'Deutlich erhöhte aktive Ausnutzung kritischer Schwachstellen' };
+    return { level: 3, label: 'Orange: Hoch', reason: 'Deutlich erhöhte aktive Ausnutzung kritischer Schwachstellen' };
   }
   if (kev7d >= 1 || cveCritical7d >= 10) {
-    return { level: 2, label: 'Gelb – Erhöht', reason: 'Aktiv ausgenutzte Schwachstellen im Beobachtungszeitraum' };
+    return { level: 2, label: 'Gelb: Erhöht', reason: 'Aktiv ausgenutzte Schwachstellen im Beobachtungszeitraum' };
   }
-  return { level: 1, label: 'Grün – Normal', reason: 'Keine auffällige Häufung aktiver Ausnutzung' };
+  return { level: 1, label: 'Grün: Normal', reason: 'Keine auffällige Häufung aktiver Ausnutzung' };
 }
 
 function buildAdvisoryTimeline(kev, days = 14) {
@@ -257,6 +279,164 @@ function topVendors(kev, days = 90, limit = 8) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([vendor, count]) => ({ vendor, count }));
+}
+
+
+/** Montag (UTC) der Kalenderwoche eines Datums als YYYY-MM-DD. */
+function weekStartKey(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Neuzugänge im CISA-KEV-Katalog je Kalenderwoche (älteste zuerst, die
+ * laufende Woche zuletzt), davon mit Ransomware-Bezug, plus gleitender
+ * Vier-Wochen-Durchschnitt zur Glättung.
+ */
+function buildKevWeekly(kev, weeks = 12) {
+  const buckets = [];
+  const now = new Date();
+  for (let i = weeks - 1; i >= 0; i--) {
+    buckets.push({ weekStart: weekStartKey(new Date(now.getTime() - i * 7 * 86400000)), kev: 0, ransomware: 0 });
+  }
+  const index = new Map(buckets.map((b) => [b.weekStart, b]));
+  for (const v of kev) {
+    if (!v.dateAdded) continue;
+    const b = index.get(weekStartKey(new Date(v.dateAdded + 'T00:00:00Z')));
+    if (!b) continue;
+    b.kev++;
+    if (v.ransomware) b.ransomware++;
+  }
+  return buckets.map((b, i) => {
+    const window = buckets.slice(Math.max(0, i - 3), i + 1);
+    const avg = window.reduce((sum, w) => sum + w.kev, 0) / window.length;
+    return { ...b, avg4: Math.round(avg * 10) / 10 };
+  });
+}
+
+/** Neuzugänge im KEV-Katalog im Zeitfenster [von, bis) in Tagen zurück. */
+function countKevBetween(kev, fromDaysAgo, toDaysAgo, onlyRansomware = false) {
+  const from = daysAgo(fromDaysAgo);
+  const to = daysAgo(toDaysAgo);
+  return kev.filter((v) => {
+    if (onlyRansomware && !v.ransomware) return false;
+    const d = new Date(v.dateAdded);
+    return d >= from && d < to;
+  }).length;
+}
+
+/**
+ * Regulierungs- und Souveränitätsthemen. Die Zuordnung erfolgt über den
+ * Titel einer Meldung; eine Meldung zählt für das erste passende Thema.
+ */
+const REGULATION_TOPICS = [
+  { label: 'NIS2 / KRITIS', re: /nis.?2|kritis|kritische infrastruktur|it-sicherheitsgesetz|kritisdachg/i },
+  { label: 'Cyber Resilience Act', re: /cyber.?resilience|\bcra\b/i },
+  { label: 'KI-Regulierung', re: /ai.?act|ki-verordnung|ki-gesetz|ki-regulier|ki-aufsicht|künstliche intelligenz.{0,40}(gesetz|verordnung|regulier|aufsicht)/i },
+  { label: 'Cloud & Souveränität', re: /souverän|cloud-strategie|verwaltungscloud|deutschland-stack|openDesk|sovereign|gaia-x|delos|open.?source.{0,30}(bund|verwaltung|behörde)/i },
+  { label: 'Verwaltungsdigitalisierung', re: /\bozg\b|onlinezugang|registermodernisierung|digitalministerium|verwaltungsdigital|e-government|egovernment|digitale verwaltung|id-wallet|eudi|eidas|bundid|it-planungsrat/i },
+  { label: 'Datenschutz & Daten', re: /dsgvo|datenschutz|data act|data governance|vorratsdaten|chatkontrolle|überwachung/i },
+  { label: 'BSI & Cyberabwehr', re: /\bbsi\b|cyberabwehr|cybersicherheitsstrategie|cybersicherheitsgesetz|nationale cyber|cyber-?sicherheitsagentur|cyberresilienz/i },
+];
+
+function regulationTopic(title) {
+  const hit = REGULATION_TOPICS.find((t) => t.re.test(title || ''));
+  return hit ? hit.label : null;
+}
+
+function buildRegulation(lists, limit = 14) {
+  const seen = new Set();
+  const items = lists
+    .flat()
+    .filter((it) => it && it.title)
+    .map((it) => ({ ...it, topic: regulationTopic(it.title) }))
+    .filter((it) => it.topic)
+    .filter((it) => {
+      const key = it.title.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const counts = new Map();
+  for (const it of items) counts.set(it.topic, (counts.get(it.topic) || 0) + 1);
+  return {
+    items: items.slice(0, limit),
+    topics: [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([topic, count]) => ({ topic, count })),
+  };
+}
+
+/**
+ * Management-Zusammenfassung in einfacher Sprache. Rein regelbasiert aus den
+ * echten Kennzahlen abgeleitet; fehlende Daten führen zum Weglassen des
+ * jeweiligen Satzes, nie zu erfundenen Werten.
+ */
+function buildSummary({ threat, kpis, kpiPrev, zdc, services }) {
+  if (threat.level === 0) {
+    return {
+      headline: 'Lagebild unvollständig: Datenquellen nicht erreichbar',
+      bullets: [],
+      action: 'Quellen-Anzeige oben rechts prüfen. Bis die Daten wieder verfügbar sind, ist keine Aussage zur Lage möglich.',
+    };
+  }
+  const HEADLINES = {
+    1: 'Lage ruhig',
+    2: 'Lage erhöht: Entwicklung beobachten',
+    3: 'Lage angespannt: Patch-Priorität erhöhen',
+    4: 'Lage kritisch: sofort handeln',
+  };
+  const ACTIONS = {
+    1: 'Keine Sofortmaßnahmen nötig. Regulären Patch-Zyklus fortführen.',
+    2: 'Meldungen von BSI und CERT-Bund beobachten. Betroffene Produkte im eigenen Bestand prüfen.',
+    3: 'Kritische Patches für aus dem Internet erreichbare Systeme innerhalb von 72 Stunden einplanen.',
+    4: 'Notfall-Patchprozess aktivieren, Leitung und IT-Sicherheitsbeauftragte informieren, Internet-Systeme zuerst absichern.',
+  };
+  const plural = (n, one, many) => `${n.toLocaleString('de-DE')} ${n === 1 ? one : many}`;
+  const trendWord = (now, prev) => {
+    if (prev === null || prev === undefined) return '';
+    if (now > prev) return `, mehr als in der Vorwoche (${prev.toLocaleString('de-DE')})`;
+    if (now < prev) return `, weniger als in der Vorwoche (${prev.toLocaleString('de-DE')})`;
+    return ', unverändert zur Vorwoche';
+  };
+
+  const bullets = [];
+  if (kpis.kev7d !== null && kpis.kev7d !== undefined) {
+    bullets.push(
+      `${plural(kpis.kev7d, 'Schwachstelle wurde', 'Schwachstellen wurden')} in den letzten 7 Tagen als aktiv ausgenutzt bestätigt${trendWord(kpis.kev7d, kpiPrev.kev7d)}.`
+    );
+  }
+  if (kpis.ransomwareKev30d !== null && kpis.ransomwareKev30d !== undefined) {
+    bullets.push(
+      kpis.ransomwareKev30d > 0
+        ? `${plural(kpis.ransomwareKev30d, 'ausgenutzte Lücke wird', 'ausgenutzte Lücken werden')} in 30 Tagen bereits von Erpressergruppen (Ransomware) eingesetzt.`
+        : 'Zurzeit sind keine neuen Lücken mit Ransomware-Bezug bekannt.'
+    );
+  }
+  if (zdc && zdc.medianTteDays !== null && zdc.medianTteDays !== undefined) {
+    bullets.push(
+      `Angreifer nutzen neue Lücken im Median nach ${zdc.medianTteDays.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Tagen aus. Das Zeitfenster zum Patchen ist entsprechend kurz.`
+    );
+  }
+  if (services && services.known > 0) {
+    bullets.push(
+      services.disrupted > 0
+        ? `${services.disrupted} von ${services.known} beobachteten Cloud-Diensten ${services.disrupted === 1 ? 'meldet eine Störung' : 'melden Störungen'} (${services.names.join(', ')}).`
+        : `Alle ${services.known} beobachteten Cloud-Dienste laufen ohne gemeldete Störung.`
+    );
+  }
+  return {
+    headline: HEADLINES[threat.level],
+    bullets: bullets.slice(0, 4),
+    action: ACTIONS[threat.level],
+  };
+}
+
+/** Auswertung der Dienste-Ampel: wie viele Dienste melden eine Störung. */
+function summarizeServices(list) {
+  const known = (list || []).filter((s) => s.indicator && s.indicator !== 'unknown');
+  const disrupted = known.filter((s) => s.indicator !== 'none');
+  return { known: known.length, disrupted: disrupted.length, names: disrupted.map((s) => s.name) };
 }
 
 function mergeNews(lists, limit) {
@@ -341,12 +521,18 @@ async function buildDashboard() {
   const kev = get('kev');
   const nvd = get('nvd', null);
 
-  const kev7d = countSince(kev, 7, 'dateAdded');
-  const kev30d = countSince(kev, 30, 'dateAdded');
-  const ransomwareKev30d = kev.filter(
-    (v) => v.ransomware && new Date(v.dateAdded) >= daysAgo(30)
-  ).length;
+  // Ohne KEV-Katalog gibt es keine belastbare Aussage: Kennzahlen bleiben leer
+  // (null), statt aus einer leeren Liste „0 Schwachstellen" abzuleiten.
+  const kevOk = kev.length > 0;
+  const kev7d = kevOk ? countSince(kev, 7, 'dateAdded') : null;
+  const kev30d = kevOk ? countSince(kev, 30, 'dateAdded') : null;
+  const ransomwareKev30d = kevOk
+    ? kev.filter((v) => v.ransomware && new Date(v.dateAdded) >= daysAgo(30)).length
+    : null;
   const cveCritical7d = nvd?.severities?.CRITICAL ?? 0;
+  const weekly = nvd?.weeklyCritical;
+  const services = summarizeServices(get('serviceStatus'));
+  const zdc = get('zeroDayClock', null);
 
   const kpis = {
     cveTotal7d: nvd?.total ?? null,
@@ -359,15 +545,41 @@ async function buildDashboard() {
     bsiCsw7d: countSince(get('bsiCsw'), 7),
   };
 
+  // Werte der jeweils vorherigen Periode für den Vorwochenvergleich
+  const kpiPrev = {
+    cveCritical7d: weekly && weekly.length >= 2 ? weekly[weekly.length - 2].critical : null,
+    kev7d: kevOk ? countKevBetween(kev, 14, 7) : null,
+    ransomwareKev30d: kevOk ? countKevBetween(kev, 60, 30, true) : null,
+  };
+  const threatLevel = kevOk
+    ? computeThreatLevel({ cveCritical7d, kev7d, ransomwareKev30d })
+    : {
+        level: 0,
+        label: 'Unbekannt',
+        reason: 'Der CISA-KEV-Katalog ist derzeit nicht erreichbar, eine Einstufung ist nicht möglich',
+      };
+  const regulation = buildRegulation([
+    get('netzpolitik'),
+    get('heise'),
+    get('golem'),
+    get('tagesschauInland'),
+    get('bsiCsw'),
+  ]);
+
   return {
     generatedAt: new Date().toISOString(),
     demo: false,
-    threatLevel: computeThreatLevel({ cveCritical7d, kev7d, ransomwareKev30d }),
+    threatLevel,
+    summary: buildSummary({ threat: threatLevel, kpis, kpiPrev, zdc, services }),
     kpis,
+    kpiPrev,
     charts: {
       cveSeverity: nvd?.severities ?? null,
+      cveWeeklyCritical: weekly ?? null,
       advisoryTimeline: buildAdvisoryTimeline(kev),
+      kevWeekly: kevOk ? buildKevWeekly(kev) : null,
       kevTopVendors: topVendors(kev),
+      regulationTopics: regulation.topics,
     },
     lists: {
       certBund: certBund.slice(0, 14),
@@ -381,17 +593,23 @@ async function buildDashboard() {
       serviceStatus: get('serviceStatus'),
       // DWD-Wetterwarnungen und Bevölkerungsschutz (alle übrigen Kanäle),
       // beides auf die konfigurierte Region (Standard Berlin) beschränkt
-      dwd: summarizeDwd(get('nina').filter((w) => w.provider === 'DWD')),
-      civilProtection: get('nina')
-        .filter((w) => w.provider !== 'DWD')
-        .slice(0, 6),
+      // null = Quelle gestört (nicht als „keine Warnungen" darstellen)
+      dwd: results.nina?.data ? summarizeDwd(get('nina').filter((w) => w.provider === 'DWD')) : null,
+      civilProtection: results.nina?.data
+        ? get('nina')
+            .filter((w) => w.provider !== 'DWD')
+            .slice(0, 6)
+        : null,
       energy: get('energy', null),
       weather: get('weather', null),
       // null = nicht konfiguriert (Segment ausblenden); unavailable = gestört
       cloudflare: process.env.CLOUDFLARE_API_TOKEN
         ? get('cloudflare', { unavailable: true })
         : null,
-      zeroDayClock: get('zeroDayClock', null),
+      zeroDayClock: zdc,
+      regulation: regulation.items,
+      deadlines: upcomingDeadlines(5),
+      serviceSummary: services,
       socialTrends: mergeTrends([
         get('infosecTrends'),
         get('chaosTrends'),
@@ -411,4 +629,9 @@ async function buildDashboard() {
   };
 }
 
-module.exports = { buildDashboard, SOURCES };
+module.exports = {
+  buildDashboard,
+  SOURCES,
+  // für Tests
+  _internals: { buildKevWeekly, countKevBetween, buildRegulation, regulationTopic, buildSummary, summarizeServices, weekStartKey },
+};
